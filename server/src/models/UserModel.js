@@ -2,29 +2,23 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+    name: String,
 
     email: {
       type: String,
-      required: true,
       unique: true,
-      lowercase: true,
-      trim: true,
     },
 
-    password: {
-      type: String,
-      required: true,
-    },
+    password: String,
 
     role: {
       type: String,
-      enum: ["user", "admin"],
       default: "user",
+    },
+
+    avatar: {
+      type: String,
+      default: "",
     },
 
     codeforcesHandle: {
@@ -37,16 +31,17 @@ const userSchema = new mongoose.Schema(
       default: "",
     },
 
-    avatar: {
-      type: String,
-      default: "",
+    isVerified: {
+      type: Boolean,
+      default: false,
     },
+
+    verificationToken: String,
+
+    verificationTokenExpires: Date,
   },
   {
     timestamps: true,
   }
 );
-
-const User = mongoose.model("User", userSchema);
-
-export default User;
+export default mongoose.model("User", userSchema);
