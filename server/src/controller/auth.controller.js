@@ -139,12 +139,12 @@ export const login = async (req, res) => {
     const user = await User.findOne({
       email: email.toLowerCase(),
     });
-if (!user.isVerified) {
-  return res.status(403).json({
-    success: false,
-    message: "Please verify your email before logging in.",
-  });
-}
+// if (!user.isVerified) {
+//   return res.status(403).json({
+//     success: false,
+//     message: "Please verify your email before logging in.",
+//   });
+// }
     if (!user) {
       return res.status(401).json({
         success: false,
