@@ -1,29 +1,12 @@
-import { Routes, Route } from "react-router-dom";
-
-import Login from "../pages/Login";
-import Register from "../pages/Register";
-import Dashboard from "../pages/Dashboard";
-
-import ProtectedRoute from "../components/ProtectedRoute";
+import DashboardLayout from "../layouts/DashboardLayout";
 
 function AppRoutes() {
   return (
-    <Routes>
-
-      <Route path="/login" element={<Login />} />
-
-      <Route path="/register" element={<Register />} />
-
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        }
-      />
-
-    </Routes>
+    <DashboardLayout>
+      <h1 className="text-3xl font-bold">
+        Dashboard Test Works
+      </h1>
+    </DashboardLayout>
   );
 }
 
