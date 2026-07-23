@@ -80,7 +80,7 @@ export const register = async (req, res) => {
         message: "All fields are required",
       });
     }
-
+    
     // Check existing user
     const existingUser = await User.findOne({
       email: email.toLowerCase(),

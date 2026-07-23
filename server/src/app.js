@@ -4,17 +4,17 @@ import dotenv from "dotenv";
 import userRoutes from "./routes/user.routes.js";
 import codeforcesRoutes from "./routes/codeforces.route.js";
 import dashboardRoutes from "./routes/dashboard.route.js";
+import settingsRoutes from "./routes/setting.route.js";
 import cors from "cors";
 
 dotenv.config();
 const app = express();
-
 app.use(cors({
     origin:"http://localhost:5173",
     credentials:true
 }));
-
 app.use(express.json());
+app.use("/api/settings", settingsRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/codeforces", codeforcesRoutes);
 app.use("/api/users", userRoutes);

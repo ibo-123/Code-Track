@@ -1,9 +1,8 @@
 import User from "../models/UserModel.js";
-import { getCodeforcesUser } from "../services/codeforces.services.js";
+import { getCodeforcesStats } from "../services/codeforces.services.js";
 
 export const getDashboard = async (req, res) => {
   try {
-    // Get logged-in user
     const user = await User.findById(req.user.id).select("-password");
 
     if (!user) {
@@ -13,34 +12,52 @@ export const getDashboard = async (req, res) => {
       });
     }
 
-    // If no Codeforces account connected
+    // No Codeforces account connected
     if (!user.codeforcesHandle) {
       return res.status(200).json({
         success: true,
         user,
+        problemsSolved: 0,
+        contestCount: 0,
         codeforces: null,
       });
     }
 
-    // Fetch latest Codeforces profile
-    const cfUser = await getCodeforcesUser(user.codeforcesHandle);
+    let stats = null;
+
+    try {
+      stats = await getCodeforcesStats(user.codeforcesHandle);
+    } catch (error) {
+      console.error("Codeforces Error:", error.message);
+
+      // Optional: clear the invalid handle automatically
+      // await User.findByIdAndUpdate(user._id, {
+      //   codeforcesHandle: "",
+      // });
+    }
 
     return res.status(200).json({
       success: true,
       user,
-      codeforces: {
-        handle: cfUser.handle,
-        rating: cfUser.rating,
-        maxRating: cfUser.maxRating,
-        rank: cfUser.rank,
-        maxRank: cfUser.maxRank,
-        contribution: cfUser.contribution,
-        avatar: cfUser.avatar,
-      },
+
+      problemsSolved: stats?.problemsSolved || 0,
+      contestCount: stats?.contestCount || 0,
+
+      codeforces: stats
+        ? {
+            handle: stats.handle,
+            rating: stats.rating,
+            maxRating: stats.maxRating,
+            rank: stats.rank,
+            maxRank: stats.maxRank,
+            contribution: stats.contribution,
+            avatar: stats.avatar,
+          }
+        : null,
     });
 
   } catch (error) {
-    console.error(error);
+    console.error("Dashboard Error:", error);
 
     return res.status(500).json({
       success: false,
