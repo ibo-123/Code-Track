@@ -5,6 +5,8 @@ import userRoutes from "./routes/user.routes.js";
 import codeforcesRoutes from "./routes/codeforces.route.js";
 import dashboardRoutes from "./routes/dashboard.route.js";
 import settingsRoutes from "./routes/setting.route.js";
+import contestRoutes from "./routes/contets.route.js";
+import analyticsRoutes from "./routes/analytics.route.js";
 import cors from "cors";
 
 dotenv.config();
@@ -14,12 +16,13 @@ app.use(cors({
     credentials:true
 }));
 app.use(express.json());
+app.use("/api/analytics", analyticsRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/codeforces", codeforcesRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
-
+app.use("/api/contests", contestRoutes);
 app.get("/", (req, res) => {
     res.send("Welcome to CodeTrack API");
 });

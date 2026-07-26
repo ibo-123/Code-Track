@@ -64,11 +64,34 @@ async(handle)=>{
 };
 
 
+export const getContestHistory = async (handle) => {
+
+  handle = validateHandle(handle);
+
+  const response = await axios.get(
+    `${BASE_URL}/user.rating?handle=${handle}`
+  );
+
+  if (response.data.status !== "OK") {
+    throw new Error("Unable to fetch contest history");
+  }
+
+  return response.data.result;
+};
 
 
 
+export const getContestList = async () => {
+  const response = await axios.get(
+    "https://codeforces.com/api/contest.list"
+  );
 
+  if (response.data.status !== "OK") {
+    throw new Error("Unable to fetch contests");
+  }
 
+  return response.data.result;
+};
 
 
 // Get rating history
