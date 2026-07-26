@@ -9,6 +9,7 @@ import Analytics from "../pages/Analytics";
 import DashboardLayout from "../layouts/DashboardLayout";
 import ProtectedRoute from "../components/ProtectedRoute";
 import Contests from "../pages/Contests";
+import Home from "../pages/Home";
 
 function AppRoutes() {
 
@@ -17,6 +18,10 @@ function AppRoutes() {
     <Routes>
 
       {/* Public Routes */}
+      <Route
+    path="/"
+    element={<Home />}
+/>
 
       <Route
         path="/"
