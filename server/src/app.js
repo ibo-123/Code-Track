@@ -13,7 +13,7 @@ dotenv.config();
 const app = express();
 app.use(
   cors({
-    origin: "https://code-track-nine.vercel.app/",
+    origin: "https://code-track-nine.vercel.app",
     credentials: true,
   })
 );
