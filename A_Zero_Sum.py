@@ -30,3 +30,8 @@ for _ in range(int(input())):
                         print("YES")
                 else:
                         print("NO")
+                        
+                        
+                        
+                        
+                        # VITE_API_URL
