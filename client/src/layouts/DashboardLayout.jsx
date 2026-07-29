@@ -1,18 +1,14 @@
 import Sidebar from "../components/layout/Sidebar";
 import Navbar from "../components/layout/Navbar";
 
-function DashboardLayout({ children, username }) {
+function DashboardLayout({ children }) {
   return (
     <div className="min-h-screen bg-slate-50 flex">
-      {/* Sidebar */}
       <Sidebar />
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col">
-        {/* Navbar */}
-        <Navbar username={username} />
+        <Navbar username="User" />
 
-        {/* Page */}
         <main className="p-6">
           {children}
         </main>
