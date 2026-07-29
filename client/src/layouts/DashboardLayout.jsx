@@ -12,7 +12,7 @@ function DashboardLayout({ children }) {
       <div className="flex-1 flex flex-col">
 
         {/* Navbar */}
-        <Navbar />
+        <Navbar username={dashboard?.user?.name || "User"} />
 
         {/* Page */}
         <main className="p-6">
