@@ -4,7 +4,7 @@ import {
   TrendingUp
 } from "lucide-react";
 
-
+// this file should be updated
 const activities = [
   {
     icon: Code2,

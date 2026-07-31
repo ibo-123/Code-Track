@@ -1,4 +1,5 @@
 import { User, Mail, Code2, Trophy } from "lucide-react";
+// // this file should be updated
 
 function ProfileCard({ user, codeforces }) {
   return (

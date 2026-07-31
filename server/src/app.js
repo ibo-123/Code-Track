@@ -11,12 +11,33 @@ import cors from "cors";
 
 dotenv.config();
 const app = express();
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://code-track-nine.vercel.app",
+];
+
 app.use(
   cors({
-    origin: "https://code-track-nine.vercel.app",
+    origin(origin, callback) {
+      // Allow requests with no Origin (e.g. Postman)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   })
 );
+// app.use(
+//   cors({
+//     origin: "https://code-track-nine.vercel.app",
+//     credentials: true,
+//   })
+// );
+
 app.use(express.json());
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/settings", settingsRoutes);

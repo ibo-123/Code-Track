@@ -1,7 +1,77 @@
 import bcrypt from "bcrypt";
 import User from "../models/UserModel.js";
 import jwt from "jsonwebtoken";
-import { sendEmail } from "../util/sendEmail.js";
+import {
+  sendEmail,
+  sendVerificationEmail,
+} from "../services/email.service.js";
+
+import {
+  generateVerificationToken,
+  generateVerificationExpiry,
+} from "../util/generateVerificationToken.js";
+
+export const resendVerificationEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    const user = await User.findOne({
+      email: email.toLowerCase(),
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is already verified",
+      });
+    }
+
+    const token = generateVerificationToken();
+    const expires = generateVerificationExpiry();
+
+    user.verificationToken = token;
+    user.verificationTokenExpires = expires;
+
+    await user.save();
+
+    await sendVerificationEmail(
+      user.email,
+      user.name,
+      token
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Verification email sent successfully.",
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to send verification email",
+    });
+
+  }
+};
+
+
 
 export const verifyEmail = async (req, res) => {
   try {
@@ -13,18 +83,24 @@ export const verifyEmail = async (req, res) => {
         message: "Verification token is missing",
       });
     }
-
+console.log("Token from URL:", token);
     const user = await User.findOne({
-      verificationToken: token,
-      verificationTokenExpires: { $gt: Date.now() },
-    });
+  verificationToken: token,
+});
 
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid or expired verification token",
-      });
-    }
+if (!user) {
+  return res.status(400).json({
+    success: false,
+    message: "Token not found",
+  });
+}
+
+if (user.verificationTokenExpires <= new Date()) {
+  return res.status(400).json({
+    success: false,
+    message: "Token has expired",
+  });
+}
 
     user.isVerified = true;
     user.verificationToken = null;
@@ -33,9 +109,10 @@ export const verifyEmail = async (req, res) => {
     await user.save();
 
     return res.status(200).json({
-      success: true,
-      message: "Email verified successfully. You can now log in.",
-    });
+  success: true,
+  message: "Email verified successfully.",
+});
+
   } catch (error) {
     console.error(error);
 
@@ -73,7 +150,6 @@ export const register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    // Validate input
     if (!name || !email || !password) {
       return res.status(400).json({
         success: false,
@@ -81,7 +157,6 @@ export const register = async (req, res) => {
       });
     }
 
-    // Check existing user
     const existingUser = await User.findOne({
       email: email.toLowerCase(),
     });
@@ -93,32 +168,54 @@ export const register = async (req, res) => {
       });
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
+    const verificationToken =
+      generateVerificationToken();
+
+    const verificationTokenExpires =
+      generateVerificationExpiry();
+
     const user = await User.create({
       name,
       email: email.toLowerCase(),
       password: hashedPassword,
-    });
 
-    // Remove password from response
+      isVerified: false,
+
+      verificationToken,
+      verificationTokenExpires,
+    });
+    console.log("Generated token:", verificationToken);
+console.log("Generated expiry:", verificationTokenExpires);
+    await sendVerificationEmail(
+      user.email,
+      user.name,
+      verificationToken
+    );
+
     const userResponse = user.toObject();
+
     delete userResponse.password;
+    delete userResponse.verificationToken;
+    delete userResponse.verificationTokenExpires;
 
     return res.status(201).json({
       success: true,
-      message: "User registered successfully",
+      message:
+        "Registration successful. Please verify your email.",
       user: userResponse,
     });
+
   } catch (error) {
+
     console.error(error);
 
     return res.status(500).json({
       success: false,
       message: "Internal Server Error",
     });
+
   }
 };
 
@@ -136,9 +233,17 @@ export const login = async (req, res) => {
     }
 
     // Find user
-    const user = await User.findOne({
-      email: email.toLowerCase(),
-    });
+ const user = await User.findOne({
+  email: email.toLowerCase(),
+});
+
+if (!user) {
+  return res.status(401).json({
+    success: false,
+    message: "Invalid email or password",
+  });
+}
+
 if (!user.isVerified) {
   return res.status(403).json({
     success: false,

@@ -1,3 +1,7 @@
+// this file should be updated
+
+
+
 import { Card, CardContent } from "../ui/card";
 
 function ActivityCard() {
