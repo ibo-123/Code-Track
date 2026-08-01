@@ -4,8 +4,7 @@ import {
   register,
   login,
   getCurrentUser,
-  verifyEmail,
-  testEmail,
+  verifyEmail
 } from "../controller/auth.controller.js";
 
 import authMiddleware from "../middlewares/auth.middleware.js";
