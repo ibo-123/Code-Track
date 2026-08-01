@@ -1,77 +1,81 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
-/**
- * Send Email Verification
- */
+transporter.verify((error, success) => {
+  if (error) {
+    console.log("❌ Gmail Error:", error.message);
+  } else {
+    console.log("✅ Gmail is ready");
+  }
+});
+
+export const sendEmail = async (to, subject, html) => {
+  const info = await transporter.sendMail({
+    from: `"CodeTrack" <${process.env.EMAIL_USER}>`,
+    to,
+    subject,
+    html,
+  });
+
+  console.log("Email sent:", info.messageId);
+
+  return info;
+};
+
 export const sendVerificationEmail = async (
   email,
   name,
   token
 ) => {
   const verificationLink =
-    `${process.env.CLIENT_URL}/verify-email?token=${encodeURIComponent(token)}`;
+    `${process.env.CLIENT_URL}/verify-email?token=${token}`;
 
-  try {
-    const data = await resend.emails.send({
-      from: "CodeTrack <onboarding@resend.dev>",
-      to: email,
-      subject: "Verify your CodeTrack Account",
-      html: `
-        <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;">
-          <h2 style="color:#2563eb;">
-            Welcome to CodeTrack 🚀
-          </h2>
+  const html = `
+    <div style="font-family:Arial;padding:20px">
+      <h2>Hello ${name} 👋</h2>
 
-          <p>Hello <strong>${name}</strong>,</p>
+      <p>Thank you for registering with CodeTrack.</p>
 
-          <p>
-            Thank you for creating your CodeTrack account.
-            Please verify your email by clicking the button below.
-          </p>
+      <a
+        href="${verificationLink}"
+        style="
+          background:#2563eb;
+          color:white;
+          padding:12px 20px;
+          text-decoration:none;
+          border-radius:6px;
+          display:inline-block;
+        "
+      >
+        Verify Email
+      </a>
 
-          <p style="margin:30px 0;">
-            <a
-              href="${verificationLink}"
-              style="
-                background:#2563eb;
-                color:white;
-                padding:14px 24px;
-                text-decoration:none;
-                border-radius:8px;
-                font-weight:bold;
-              "
-            >
-              Verify Email
-            </a>
-          </p>
+      <p style="margin-top:20px">
+        If the button doesn't work, copy this link:
+      </p>
 
-          <p>
-            If the button doesn't work, copy and paste this link into your browser:
-          </p>
+      <p>${verificationLink}</p>
 
-          <p>
-            <a href="${verificationLink}">
-              ${verificationLink}
-            </a>
-          </p>
+      <hr>
 
-          <hr>
+      <small>
+        This link expires in 24 hours.
+      </small>
+    </div>
+  `;
 
-          <p style="color:#666;">
-            This verification link expires in 24 hours.
-          </p>
-        </div>
-      `,
-    });
-
-    console.log("✅ Verification email sent:", data);
-
-    return data;
-  } catch (error) {
-    console.error("❌ Resend Error:", error);
-
-    throw error;
-  }
+  return sendEmail(
+    email,
+    "Verify your CodeTrack Account",
+    html
+  );
 };
