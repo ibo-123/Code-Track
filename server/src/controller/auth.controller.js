@@ -1,10 +1,7 @@
 import bcrypt from "bcrypt";
 import User from "../models/UserModel.js";
 import jwt from "jsonwebtoken";
-import {
-  sendEmail,
-  sendVerificationEmail,
-} from "../services/email.service.js";
+import { sendVerificationEmail } from "../services/email.service.js";
 
 import {
   generateVerificationToken,
@@ -122,30 +119,30 @@ if (user.verificationTokenExpires <= new Date()) {
     });
   }
 };
-export const testEmail = async (req, res) => {
-  try {
-    await sendEmail(
-      "ibrahimkediramdela2211@gmail.com",
-      "CodeTrack Test Email",
-      `
-      <h1>Hello Ibrahim 👋</h1>
-      <p>This is your first email sent from your MERN application.</p>
-      `
-    );
+// export const testEmail = async (req, res) => {
+//   try {
+//     await sendEmail(
+//       "ibrahimkediramdela2211@gmail.com",
+//       "CodeTrack Test Email",
+//       `
+//       <h1>Hello Ibrahim 👋</h1>
+//       <p>This is your first email sent from your MERN application.</p>
+//       `
+//     );
 
-    res.json({
-      success: true,
-      message: "Email sent successfully",
-    });
-  } catch (error) {
-    console.error(error);
+//     res.json({
+//       success: true,
+//       message: "Email sent successfully",
+//     });
+//   } catch (error) {
+//     console.error(error);
 
-    res.status(500).json({
-      success: false,
-      message: "Failed to send email",
-    });
-  }
-};
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to send email",
+//     });
+//   }
+// };
 export const register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
