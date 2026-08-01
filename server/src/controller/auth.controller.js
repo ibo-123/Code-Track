@@ -188,11 +188,15 @@ export const register = async (req, res) => {
     });
     console.log("Generated token:", verificationToken);
 console.log("Generated expiry:", verificationTokenExpires);
-    await sendVerificationEmail(
-      user.email,
-      user.name,
-      verificationToken
-    );
+   try {
+  await sendVerificationEmail(
+    user.email,
+    user.name,
+    verificationToken
+  );
+} catch (error) {
+  console.error("Verification email failed:", error.message);
+}
 
     const userResponse = user.toObject();
 
