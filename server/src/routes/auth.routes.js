@@ -29,6 +29,6 @@ router.post(
 router.get("/me", authMiddleware, getCurrentUser);
 
 // Development only (optional)
-router.get("/test-email", testEmail);
+// router.get("/test-email", testEmail);
 
 export default router;
