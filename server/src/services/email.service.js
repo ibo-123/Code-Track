@@ -1,5 +1,7 @@
 import nodemailer from "nodemailer";
-
+if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+  console.error("❌ Email credentials missing");
+}
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 465,
@@ -9,26 +11,31 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS,
   },
 });
-
-transporter.verify((error, success) => {
+console.log("Connecting to Gmail...");
+transporter.verify((error) => {
   if (error) {
-    console.log("❌ Gmail Error:", error.message);
+    console.error("❌ Gmail Error:", error.message);
   } else {
-    console.log("✅ Gmail is ready");
+    console.log("✅ Gmail SMTP is ready");
   }
 });
 
 export const sendEmail = async (to, subject, html) => {
-  const info = await transporter.sendMail({
-    from: `"CodeTrack" <${process.env.EMAIL_USER}>`,
-    to,
-    subject,
-    html,
-  });
+  try {
+    const info = await transporter.sendMail({
+      from: `"CodeTrack" <${process.env.EMAIL_USER}>`,
+      to,
+      subject,
+      html,
+    });
 
-  console.log("Email sent:", info.messageId);
+    console.log("✅ Email sent:", info.messageId);
 
-  return info;
+    return info;
+  } catch (error) {
+    console.error("❌ Failed to send email:", error.message);
+    throw error;
+  }
 };
 
 export const sendVerificationEmail = async (
@@ -37,19 +44,21 @@ export const sendVerificationEmail = async (
   token
 ) => {
   const verificationLink =
-    `${process.env.CLIENT_URL}/verify-email?token=${token}`;
+    `${process.env.CLIENT_URL}/verify-email?token=${encodeURIComponent(token)}`;
 
   const html = `
-    <div style="font-family:Arial;padding:20px">
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;">
       <h2>Hello ${name} 👋</h2>
 
-      <p>Thank you for registering with CodeTrack.</p>
+      <p>Thank you for registering with <strong>CodeTrack</strong>.</p>
+
+      <p>Please verify your email by clicking the button below.</p>
 
       <a
         href="${verificationLink}"
         style="
           background:#2563eb;
-          color:white;
+          color:#ffffff;
           padding:12px 20px;
           text-decoration:none;
           border-radius:6px;
@@ -59,21 +68,25 @@ export const sendVerificationEmail = async (
         Verify Email
       </a>
 
-      <p style="margin-top:20px">
-        If the button doesn't work, copy this link:
+      <p style="margin-top:20px;">
+        If the button doesn't work, copy and paste this link into your browser:
       </p>
 
-      <p>${verificationLink}</p>
+      <p>
+        <a href="${verificationLink}">
+          ${verificationLink}
+        </a>
+      </p>
 
       <hr>
 
       <small>
-        This link expires in 24 hours.
+        This verification link expires in 24 hours.
       </small>
     </div>
   `;
 
-  return sendEmail(
+  return await sendEmail(
     email,
     "Verify your CodeTrack Account",
     html

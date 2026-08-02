@@ -185,14 +185,17 @@ export const register = async (req, res) => {
     });
     console.log("Generated token:", verificationToken);
 console.log("Generated expiry:", verificationTokenExpires);
-   try {
+  try {
   await sendVerificationEmail(
     user.email,
     user.name,
     verificationToken
   );
 } catch (error) {
-  console.error("Verification email failed:", error.message);
+  return res.status(500).json({
+    success: false,
+    message: "Unable to send verification email",
+  });
 }
 
     const userResponse = user.toObject();

@@ -4,8 +4,7 @@ import {
   register,
   login,
   getCurrentUser,
-  verifyEmail,
-  testEmail,
+  verifyEmail
 } from "../controller/auth.controller.js";
 
 import authMiddleware from "../middlewares/auth.middleware.js";
@@ -29,6 +28,6 @@ router.post(
 router.get("/me", authMiddleware, getCurrentUser);
 
 // Development only (optional)
-router.get("/test-email", testEmail);
+// router.get("/test-email", testEmail);
 
 export default router;
