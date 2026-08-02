@@ -3,7 +3,7 @@ if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
   console.error("❌ Email credentials missing");
 }
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
+  host: "108.177.127.109",
   port: 587,
   secure: false,
 
@@ -12,11 +12,13 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS,
   },
 
-  family: 4,
+  tls: {
+    servername: "smtp.gmail.com",
+  },
 
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 10000,
+  connectionTimeout: 15000,
+  greetingTimeout: 15000,
+  socketTimeout: 15000,
 });
 
 console.log("Connecting to Gmail...");
