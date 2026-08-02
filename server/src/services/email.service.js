@@ -1,9 +1,10 @@
 import nodemailer from "nodemailer";
+console.log("SMTP HOST: 108.177.127.109");
 if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
   console.error("❌ Email credentials missing");
 }
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
+  host: "108.177.127.109",
   port: 587,
   secure: false,
 
@@ -13,14 +14,13 @@ const transporter = nodemailer.createTransport({
   },
 
   tls: {
-    rejectUnauthorized: false,
+    servername: "smtp.gmail.com",
   },
 
   connectionTimeout: 20000,
   greetingTimeout: 20000,
   socketTimeout: 20000,
 });
-
 console.log("Connecting to Gmail...");
 transporter.verify((error) => {
   if (error) {
