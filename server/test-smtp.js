@@ -1,13 +1,17 @@
 import dns from "dns";
 
-dns.lookup(
-  "smtp.gmail.com",
-  { family: 4 },
-  (err, address) => {
-    if (err) {
-      console.log(err);
-    } else {
-      console.log("IPv4:", address);
-    }
-  }
+dns.setDefaultResultOrder("ipv4first");
+
+import "dotenv/config";
+
+import { sendEmail } from "./src/services/email.service.js";
+
+
+await sendEmail(
+  "your-real-email@gmail.com",
+  "OAuth Test",
+  "<h1>Gmail OAuth2 is working 🚀</h1>"
 );
+
+
+console.log("Done");

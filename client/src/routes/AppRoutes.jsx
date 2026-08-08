@@ -2,7 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Settings from "../pages/Settings";
 import Login from "../pages/Login";
 import Register from "../pages/Register";
-import VerifyEmail from "../pages/VerifyEmail";
+import VerifyOtp from "../pages/VerifyOtp";
 import Dashboard from "../pages/Dashboard";
 import Profile from "../pages/Profile";
 import Analytics from "../pages/Analytics";
@@ -67,10 +67,7 @@ function AppRoutes() {
         element={<Register />}
       />
 
-      <Route
-        path="/verify-email"
-        element={<VerifyEmail />}
-      />
+     <Route path="/verify-otp" element={<VerifyOtp />} />
 
 
       {/* Protected Routes */}

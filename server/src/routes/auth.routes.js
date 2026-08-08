@@ -4,30 +4,29 @@ import {
   register,
   login,
   getCurrentUser,
-  verifyEmail
+  verifyOtp,
+  resendVerificationOtp,
 } from "../controller/auth.controller.js";
 
 import authMiddleware from "../middlewares/auth.middleware.js";
-import {
-  resendVerificationEmail,
-} from "../controller/auth.controller.js";
 
 const router = express.Router();
 
-// Authentication
 router.post("/register", register);
+
+router.post("/verify-otp", verifyOtp);
+
+router.post(
+  "/resend-otp",
+  resendVerificationOtp
+);
+
 router.post("/login", login);
 
-// Email verification
-router.get("/verify-email", verifyEmail);
-router.post(
-  "/resend-verification",
-  resendVerificationEmail
+router.get(
+  "/me",
+  authMiddleware,
+  getCurrentUser
 );
-// Current user
-router.get("/me", authMiddleware, getCurrentUser);
-
-// Development only (optional)
-// router.get("/test-email", testEmail);
 
 export default router;
