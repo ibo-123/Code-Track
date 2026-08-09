@@ -1,42 +1,31 @@
 import nodemailer from "nodemailer";
-import { google } from "googleapis";
 
-const OAuth2 = google.auth.OAuth2;
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
 
-const createTransporter = async () => {
-  const oauth2Client = new OAuth2(
-    process.env.GMAIL_CLIENT_ID,
-    process.env.GMAIL_CLIENT_SECRET,
-    "https://developers.google.com/oauthplayground"
-  );
+  family: 4,
 
-  oauth2Client.setCredentials({
-    refresh_token: process.env.GMAIL_REFRESH_TOKEN,
-  });
+  auth: {
+    type: "OAuth2",
+    user: process.env.EMAIL_USER,
+    clientId: process.env.GMAIL_CLIENT_ID,
+    clientSecret: process.env.GMAIL_CLIENT_SECRET,
+    refreshToken: process.env.GMAIL_REFRESH_TOKEN,
+  },
+});
 
-  const accessToken = await oauth2Client.getAccessToken();
-
-  if (!accessToken?.token) {
-    throw new Error("Failed to generate Gmail access token");
+transporter.verify((error) => {
+  if (error) {
+    console.error("❌ Gmail OAuth2 Error:", error.message);
+  } else {
+    console.log("✅ Gmail OAuth2 is ready");
   }
-
-  return nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      type: "OAuth2",
-      user: process.env.EMAIL_USER,
-      clientId: process.env.GMAIL_CLIENT_ID,
-      clientSecret: process.env.GMAIL_CLIENT_SECRET,
-      refreshToken: process.env.GMAIL_REFRESH_TOKEN,
-      accessToken: accessToken.token,
-    },
-  });
-};
+});
 
 export const sendEmail = async (to, subject, html) => {
   try {
-    const transporter = await createTransporter();
-
     const info = await transporter.sendMail({
       from: `"CodeTrack" <${process.env.EMAIL_USER}>`,
       to,
@@ -114,9 +103,9 @@ export const sendVerificationOtp = async (
         </p>
 
         <hr style="
-          margin: 30px 0;
-          border: none;
-          border-top: 1px solid #e2e8f0;
+          margin:30px 0;
+          border:none;
+          border-top:1px solid #e2e8f0;
         ">
 
         <p style="
