@@ -79,11 +79,13 @@ function Register() {
       const res = await registerUser(payload);
 
       toast.success(
-        res.message || "Registration successful. Check your email for the OTP."
+        res.message ||
+          "Registration successful. Check your email for the OTP."
       );
 
-      // Send the user's email to the OTP page
-      navigate("/verify-otp", {
+      // Navigate to OTP verification page
+      // and pass the registered email.
+      navigate("/verify-email", {
         state: {
           email: form.email,
         },
@@ -103,7 +105,7 @@ function Register() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-2">
+      <h1 className="text-2xl font-bold">
         Create your CodeTrack account
       </h1>
 
@@ -190,10 +192,7 @@ function Register() {
 
       <p className="mt-4 text-sm text-muted-foreground">
         Already have an account?{" "}
-        <a
-          className="text-primary"
-          href="/login"
-        >
+        <a className="text-primary" href="/login">
           Sign in
         </a>
       </p>
@@ -202,4 +201,3 @@ function Register() {
 }
 
 export default Register;
-

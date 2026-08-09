@@ -2,33 +2,29 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
-    name: String,
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
     email: {
       type: String,
+      required: true,
       unique: true,
+      lowercase: true,
+      trim: true,
     },
 
-    password: String,
+    password: {
+      type: String,
+      required: true,
+    },
 
     role: {
       type: String,
+      enum: ["user", "admin"],
       default: "user",
-    },
-
-    avatar: {
-      type: String,
-      default: "",
-    },
-
-    codeforcesHandle: {
-      type: String,
-      default: "",
-    },
-
-    leetcodeUsername: {
-      type: String,
-      default: "",
     },
 
     isVerified: {
@@ -38,20 +34,20 @@ const userSchema = new mongoose.Schema(
 
     verificationOtp: {
       type: String,
-      default: "",
+      default: null,
     },
 
     verificationOtpExpires: {
       type: Date,
       default: null,
     },
-    otpAttempts: {
-      type: Number,
-      default: 0,
-    },
   },
   {
     timestamps: true,
   }
 );
-export default mongoose.model("User", userSchema);
+
+export default mongoose.model(
+  "User",
+  userSchema
+);
