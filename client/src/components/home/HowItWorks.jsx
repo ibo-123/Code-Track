@@ -1,140 +1,112 @@
-import {
-  UserPlus,
-  Link2,
-  BarChart3,
+// components/home/HowItWorks.jsx
+import { 
+  UserPlus, 
+  Code2, 
+  BarChart3, 
   Trophy,
-  ArrowRight,
+  Sparkles,
+  ArrowRight
 } from "lucide-react";
-
-const steps = [
-  {
-    number: "01",
-    title: "Create Your Account",
-    description:
-      "Sign up in seconds using your email address and access your personal dashboard.",
-    icon: UserPlus,
-    color: "bg-blue-100 text-blue-600",
-  },
-  {
-    number: "02",
-    title: "Connect Codeforces",
-    description:
-      "Link your Codeforces handle to automatically import your contests, ratings, and submissions.",
-    icon: Link2,
-    color: "bg-purple-100 text-purple-600",
-  },
-  {
-    number: "03",
-    title: "Analyze Performance",
-    description:
-      "Explore detailed charts, rating history, solved problems, and topic-wise insights.",
-    icon: BarChart3,
-    color: "bg-green-100 text-green-600",
-  },
-  {
-    number: "04",
-    title: "Improve Every Contest",
-    description:
-      "Use personalized statistics and progress tracking to steadily increase your rating.",
-    icon: Trophy,
-    color: "bg-yellow-100 text-yellow-600",
-  },
-];
+import { Button } from "../ui/button";
+import { useNavigate } from "react-router-dom";
 
 function HowItWorks() {
+  const steps = [
+    {
+      icon: UserPlus,
+      title: "Create Your Account",
+      description: "Sign up with your email and set up your competitive programming profile.",
+      color: "primary"
+    },
+    {
+      icon: Code2,
+      title: "Connect Platforms",
+      description: "Link your Codeforces and LeetCode accounts to sync your progress automatically.",
+      color: "purple"
+    },
+    {
+      icon: BarChart3,
+      title: "Track & Analyze",
+      description: "Get detailed insights into your performance with beautiful analytics and charts.",
+      color: "green"
+    },
+    {
+      icon: Trophy,
+      title: "Improve & Compete",
+      description: "Set goals, participate in contests, and climb the global leaderboard.",
+      color: "orange"
+    },
+  ];
+
+  const navigate = useNavigate();
+
   return (
-    <section
-      id="how-it-works"
-      className="py-24 bg-slate-50"
-    >
-      <div className="max-w-7xl mx-auto px-6">
-
-        <div className="text-center max-w-3xl mx-auto">
-
-          <span className="text-blue-600 font-semibold uppercase tracking-wider">
-            How It Works
-          </span>
-
-          <h2 className="text-4xl lg:text-5xl font-bold mt-4">
-            Get Started in
-            <span className="text-blue-600">
-              {" "}Four Simple Steps
-            </span>
+    <section id="how-it-works" className="py-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Section Header */}
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-500/10 border border-purple-500/20 rounded-full mb-4">
+            <Sparkles className="w-4 h-4 text-purple-500" />
+            <span className="text-sm font-medium text-purple-500">Simple Process</span>
+          </div>
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground">
+            Get Started in 4 Easy Steps
           </h2>
-
-          <p className="mt-6 text-lg text-slate-600">
-            From registration to detailed analytics, everything
-            is designed to be simple and automatic.
+          <p className="text-lg text-muted-foreground mt-4 max-w-2xl mx-auto">
+            Join thousands of competitive programmers who trust CodeTrack to monitor
+            their growth and achieve their coding goals.
           </p>
-
         </div>
 
-        <div className="mt-20 grid lg:grid-cols-4 gap-8">
-
+        {/* Steps Grid */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 relative">
+          {/* Connecting Line */}
+          <div className="hidden lg:block absolute top-1/2 left-[12.5%] right-[12.5%] h-0.5 bg-gradient-to-r from-primary/30 via-purple-500/30 to-orange-500/30 -translate-y-1/2"></div>
+          
           {steps.map((step, index) => {
-
             const Icon = step.icon;
-
             return (
-
-              <div
-                key={step.number}
-                className="relative"
-              >
-
-                <div className="bg-white rounded-3xl p-8 shadow-sm border h-full hover:shadow-xl transition">
-
-                  <span className="text-sm font-bold text-blue-600">
-                    STEP {step.number}
-                  </span>
-
-                  <div
-                    className={`
-                      w-16
-                      h-16
-                      rounded-2xl
-                      flex
-                      items-center
-                      justify-center
-                      mt-6
-                      ${step.color}
-                    `}
-                  >
-                    <Icon size={30} />
+              <div key={index} className="relative">
+                <div className="p-6 bg-card rounded-2xl border hover:shadow-xl transition-all duration-300 group text-center">
+                  {/* Step Number */}
+                  <div className="absolute -top-3 -right-3 w-8 h-8 bg-gradient-to-br from-foreground to-muted-foreground rounded-full flex items-center justify-center text-background text-sm font-bold shadow-lg">
+                    {index + 1}
                   </div>
-
-                  <h3 className="text-2xl font-bold mt-8">
+                  
+                  {/* Icon */}
+                  <div className={`p-4 bg-${step.color}/10 rounded-2xl w-fit mx-auto mb-4 group-hover:scale-110 transition-transform`}>
+                    <Icon className={`w-8 h-8 text-${step.color}`} />
+                  </div>
+                  
+                  <h3 className="text-lg font-semibold text-foreground mb-2">
                     {step.title}
                   </h3>
-
-                  <p className="text-slate-600 mt-4 leading-7">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
                     {step.description}
                   </p>
-
+                  
+                  {/* Step Indicator */}
+                  {index < steps.length - 1 && (
+                    <div className="hidden lg:block absolute -right-3 top-1/2 -translate-y-1/2">
+                      <div className="w-6 h-0.5 bg-border"></div>
+                    </div>
+                  )}
                 </div>
-
-                {index !== steps.length - 1 && (
-                  <ArrowRight
-                    className="
-                      hidden
-                      lg:block
-                      absolute
-                      -right-6
-                      top-1/2
-                      text-slate-300
-                    "
-                    size={28}
-                  />
-                )}
-
               </div>
-
             );
-
           })}
-
         </div>
 
+        {/* CTA */}
+        <div className="text-center mt-12">
+          <Button
+            onClick={() => navigate("/register")}
+            className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 text-primary-foreground font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 group"
+          >
+            Start Your Journey Now
+            <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+          </Button>
+        </div>
       </div>
     </section>
   );

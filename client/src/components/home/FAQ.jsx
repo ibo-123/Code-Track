@@ -1,143 +1,95 @@
+// components/home/FAQ.jsx
 import { useState } from "react";
-import { Plus, Minus } from "lucide-react";
-
-const faqs = [
-  {
-    question: "What is CodeTrack?",
-    answer:
-      "CodeTrack is a competitive programming dashboard that helps you monitor your Codeforces performance, rating history, contest participation, solved problems, and overall progress.",
-  },
-  {
-    question: "How do I connect my Codeforces account?",
-    answer:
-      "After creating an account, go to your Profile or Settings page and enter your Codeforces handle. CodeTrack will automatically synchronize your public contest data.",
-  },
-  {
-    question: "Is CodeTrack free to use?",
-    answer:
-      "Yes. The core features of CodeTrack are completely free, including dashboard analytics, contest tracking, and rating history.",
-  },
-  {
-    question: "Does CodeTrack support LeetCode?",
-    answer:
-      "LeetCode integration is planned for a future release. The first version focuses on Codeforces analytics.",
-  },
-  {
-    question: "How often is my data updated?",
-    answer:
-      "Whenever you refresh your dashboard or reconnect your account, CodeTrack fetches the latest public information from Codeforces.",
-  },
-  {
-    question: "Is my personal information secure?",
-    answer:
-      "Yes. Passwords are securely stored and your Codeforces public data is only used to generate your analytics dashboard.",
-  },
-];
+import { 
+  ChevronDown, 
+  ChevronUp,
+  HelpCircle,
+  Sparkles
+} from "lucide-react";
 
 function FAQ() {
-  const [openIndex, setOpenIndex] = useState(0);
+  const [openIndex, setOpenIndex] = useState(null);
 
-  const toggle = (index) => {
-    setOpenIndex(openIndex === index ? -1 : index);
+  const faqs = [
+    {
+      question: "What is CodeTrack?",
+      answer: "CodeTrack is a comprehensive platform designed for competitive programmers to track their progress, analyze performance, and improve their coding skills. It integrates with popular platforms like Codeforces and LeetCode."
+    },
+    {
+      question: "Is CodeTrack free to use?",
+      answer: "Yes, CodeTrack offers a free tier with all essential features. We also offer premium plans with advanced analytics, custom goals, and priority support for serious competitive programmers."
+    },
+    {
+      question: "How do I connect my Codeforces account?",
+      answer: "Simply navigate to your profile settings, enter your Codeforces handle, and click 'Connect'. We'll automatically sync your problem-solving data and contest history."
+    },
+    {
+      question: "Can I track multiple platforms?",
+      answer: "Absolutely! CodeTrack supports integration with Codeforces, LeetCode, and more platforms are coming soon. You can track your progress across all your favorite coding platforms in one place."
+    },
+    {
+      question: "How accurate is the rating prediction?",
+      answer: "Our rating prediction system uses advanced machine learning algorithms trained on thousands of contests. While not 100% accurate, it provides a reliable estimate of your potential rating."
+    },
+    {
+      question: "Is my data secure?",
+      answer: "Yes, we take security seriously. All data is encrypted in transit and at rest. We never share your personal information with third parties without your explicit consent."
+    },
+  ];
+
+  const toggleFAQ = (index) => {
+    setOpenIndex(openIndex === index ? null : index);
   };
 
   return (
-    <section
-      id="faq"
-      className="py-24 bg-slate-50"
-    >
-      <div className="max-w-4xl mx-auto px-6">
-
-        <div className="text-center">
-
-          <span className="text-blue-600 font-semibold uppercase tracking-widest">
-            FAQ
-          </span>
-
-          <h2 className="text-4xl lg:text-5xl font-bold mt-4">
+    <section id="faq" className="py-20 bg-white">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Section Header */}
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-50 border border-yellow-100 rounded-full mb-4">
+            <HelpCircle className="w-4 h-4 text-yellow-600" />
+            <span className="text-sm font-medium text-yellow-600">FAQ</span>
+          </div>
+          <h2 className="text-3xl md:text-4xl font-bold text-slate-900">
             Frequently Asked Questions
           </h2>
-
-          <p className="text-slate-600 mt-6 text-lg">
-            Everything you need to know about CodeTrack.
+          <p className="text-lg text-slate-500 mt-4">
+            Find answers to common questions about CodeTrack
           </p>
-
         </div>
 
-        <div className="mt-16 space-y-5">
-
-          {faqs.map((faq, index) => {
-
-            const isOpen = openIndex === index;
-
-            return (
-
-              <div
-                key={faq.question}
-                className="
-                  bg-white
-                  rounded-2xl
-                  border
-                  shadow-sm
-                  overflow-hidden
-                "
+        {/* FAQ List */}
+        <div className="space-y-3">
+          {faqs.map((faq, index) => (
+            <div
+              key={index}
+              className="border border-slate-100 rounded-xl overflow-hidden transition-all duration-200 hover:border-slate-200"
+            >
+              <button
+                onClick={() => toggleFAQ(index)}
+                className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-slate-50 transition-colors"
               >
-
-                <button
-                  onClick={() => toggle(index)}
-                  className="
-                    w-full
-                    flex
-                    justify-between
-                    items-center
-                    p-6
-                    text-left
-                  "
-                >
-
-                  <h3 className="font-semibold text-lg">
-                    {faq.question}
-                  </h3>
-
-                  {isOpen ? (
-                    <Minus
-                      className="text-blue-600"
-                    />
-                  ) : (
-                    <Plus
-                      className="text-slate-500"
-                    />
-                  )}
-
-                </button>
-
-                <div
-                  className={`
-                    transition-all
-                    duration-300
-                    overflow-hidden
-                    ${
-                      isOpen
-                        ? "max-h-96"
-                        : "max-h-0"
-                    }
-                  `}
-                >
-
-                  <p className="px-6 pb-6 text-slate-600 leading-8">
+                <span className="font-medium text-slate-900">{faq.question}</span>
+                {openIndex === index ? (
+                  <ChevronUp className="w-5 h-5 text-slate-400 flex-shrink-0" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-slate-400 flex-shrink-0" />
+                )}
+              </button>
+              <div
+                className={`overflow-hidden transition-all duration-300 ${
+                  openIndex === index ? "max-h-96" : "max-h-0"
+                }`}
+              >
+                <div className="px-6 pb-4 pt-2">
+                  <p className="text-sm text-slate-500 leading-relaxed">
                     {faq.answer}
                   </p>
-
                 </div>
-
               </div>
-
-            );
-
-          })}
-
+            </div>
+          ))}
         </div>
-
       </div>
     </section>
   );

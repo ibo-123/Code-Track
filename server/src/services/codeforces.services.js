@@ -31,7 +31,7 @@ async(handle)=>{
 
 
     if(response.data.status !== "OK"){
-     return null;
+    //  return null;
       throw new Error(
         "Codeforces handle not found"
       );

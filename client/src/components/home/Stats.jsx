@@ -1,115 +1,97 @@
-import {
-  Trophy,
-  Code2,
-  Users,
-  BarChart3,
+// components/home/Stats.jsx
+import { 
+  Users, 
+  Code2, 
+  Trophy, 
+  Award
 } from "lucide-react";
-
-const stats = [
-  {
-    title: "Problems Solved",
-    value: "500K+",
-    icon: Code2,
-    color: "text-blue-600",
-  },
-  {
-    title: "Contests Tracked",
-    value: "20K+",
-    icon: Trophy,
-    color: "text-yellow-500",
-  },
-  {
-    title: "Active Users",
-    value: "5K+",
-    icon: Users,
-    color: "text-green-600",
-  },
-  {
-    title: "Performance Reports",
-    value: "100K+",
-    icon: BarChart3,
-    color: "text-purple-600",
-  },
-];
+import { useEffect, useRef, useState } from "react";
 
 function Stats() {
+  const [isVisible, setIsVisible] = useState(false);
+  const sectionRef = useRef(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+        }
+      },
+      { threshold: 0.3 }
+    );
+
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
+  const stats = [
+    { 
+      icon: Code2, 
+      label: "Problems Solved", 
+      value: "1.2M+", 
+      change: "+12%",
+      color: "primary"
+    },
+    { 
+      icon: Users, 
+      label: "Active Users", 
+      value: "10K+", 
+      change: "+23%",
+      color: "green"
+    },
+    { 
+      icon: Trophy, 
+      label: "Contests Hosted", 
+      value: "850+", 
+      change: "+8%",
+      color: "purple"
+    },
+    { 
+      icon: Award, 
+      label: "Top Rank Achieved", 
+      value: "#1", 
+      change: "🔥",
+      color: "orange"
+    },
+  ];
+
   return (
-    <section className="py-20 bg-white">
-
-      <div className="max-w-7xl mx-auto px-6">
-
-        <div className="text-center">
-
-          <h2 className="text-4xl font-bold">
-            Trusted by Competitive Programmers
-          </h2>
-
-          <p className="text-slate-500 mt-4 max-w-2xl mx-auto">
-            CodeTrack helps programmers analyze their
-            performance, monitor contests, and improve
-            consistently through detailed insights.
-          </p>
-
-        </div>
-
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 mt-16">
-
-          {stats.map((item) => {
-
-            const Icon = item.icon;
-
+    <section ref={sectionRef} className="py-20 bg-background">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+          {stats.map((stat, index) => {
+            const Icon = stat.icon;
             return (
-
               <div
-                key={item.title}
-                className="
-                  bg-slate-50
-                  rounded-2xl
-                  p-8
-                  text-center
-                  border
-                  hover:shadow-xl
-                  hover:-translate-y-2
-                  transition
-                  duration-300
-                "
+                key={index}
+                className={`transform transition-all duration-700 ${
+                  isVisible 
+                    ? "translate-y-0 opacity-100" 
+                    : "translate-y-12 opacity-0"
+                }`}
+                style={{ transitionDelay: `${index * 100}ms` }}
               >
-
-                <div className="flex justify-center">
-
-                  <div className="w-16 h-16 rounded-full bg-white shadow flex items-center justify-center">
-
-                    <Icon
-                      className={item.color}
-                      size={32}
-                    />
-
+                <div className="p-6 bg-gradient-to-br from-muted/50 to-muted/30 rounded-2xl border hover:shadow-lg transition-all duration-300 group">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className={`p-3 bg-${stat.color}/10 rounded-xl group-hover:scale-110 transition-transform`}>
+                      <Icon className={`w-6 h-6 text-${stat.color}`} />
+                    </div>
+                    <span className={`text-xs font-medium px-2 py-1 bg-${stat.color}/10 text-${stat.color} rounded-full`}>
+                      {stat.change}
+                    </span>
                   </div>
-
+                  <p className="text-3xl font-bold text-foreground">{stat.value}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
                 </div>
-
-                <h3 className="text-4xl font-extrabold mt-6">
-
-                  {item.value}
-
-                </h3>
-
-                <p className="text-slate-500 mt-3">
-
-                  {item.title}
-
-                </p>
-
               </div>
-
             );
-
           })}
-
         </div>
-
       </div>
-
     </section>
   );
 }

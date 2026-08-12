@@ -1,272 +1,151 @@
-import {
-  Code2,
-  Trophy,
-  Flame,
+// components/home/DashboardPreview.jsx
+import { 
+  Monitor, 
+  Code2, 
+  Trophy, 
   TrendingUp,
-  CalendarDays,
+  ArrowRight,
+  Sparkles,
+  Activity,
+  Calendar,
+  Award,
+  Star
 } from "lucide-react";
+import { Button } from "../ui/button";
+import { useNavigate } from "react-router-dom";
 
 function DashboardPreview() {
+  const navigate = useNavigate();
+
   return (
-    <section
-      id="dashboard"
-      className="py-24 bg-white"
-    >
-      <div className="max-w-7xl mx-auto px-6">
-
-        {/* Heading */}
-
-        <div className="text-center max-w-3xl mx-auto">
-
-          <span className="text-blue-600 font-semibold uppercase tracking-wider">
-            Dashboard
-          </span>
-
-          <h2 className="text-4xl lg:text-5xl font-bold mt-4">
-            Everything In
-            <span className="text-blue-600">
-              {" "}One Dashboard
-            </span>
-          </h2>
-
-          <p className="mt-6 text-lg text-slate-600">
-            Track ratings, contests, solved problems,
-            upcoming competitions, and performance
-            trends from one beautiful interface.
-          </p>
-
-        </div>
-
-        {/* Browser Window */}
-
-        <div className="mt-20 rounded-3xl shadow-2xl border overflow-hidden">
-
-          {/* Browser Header */}
-
-          <div className="bg-slate-900 px-6 py-4 flex items-center gap-2">
-
-            <div className="w-3 h-3 rounded-full bg-red-500" />
-
-            <div className="w-3 h-3 rounded-full bg-yellow-500" />
-
-            <div className="w-3 h-3 rounded-full bg-green-500" />
-
-            <div className="ml-6 bg-slate-700 rounded-full px-4 py-1 text-slate-300 text-sm">
-              codetrack.app/dashboard
+    <section className="py-20 bg-gradient-to-br from-slate-50 to-blue-50/30">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid lg:grid-cols-2 gap-12 items-center">
+          {/* Left Content */}
+          <div>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-100 rounded-full mb-4">
+              <Monitor className="w-4 h-4 text-blue-600" />
+              <span className="text-sm font-medium text-blue-600">Live Demo</span>
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
+              See Your Progress in Real-Time
+            </h2>
+            <p className="text-lg text-slate-500 mb-6">
+              Our intuitive dashboard visualizes your coding journey, making it easy to track
+              performance, identify areas for improvement, and celebrate achievements.
+            </p>
+            
+            <div className="space-y-4 mb-8">
+              {[
+                { icon: Activity, label: "Live problem-solving analytics" },
+                { icon: Calendar, label: "Weekly performance tracking" },
+                { icon: Award, label: "Achievement badges and milestones" },
+                { icon: Star, label: "Custom progress goals" },
+              ].map((item, index) => (
+                <div key={index} className="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-100">
+                  <div className="p-2 bg-blue-50 rounded-lg">
+                    <item.icon className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <span className="text-sm text-slate-600">{item.label}</span>
+                </div>
+              ))}
             </div>
 
+            <Button
+              onClick={() => navigate("/register")}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 group"
+            >
+              Explore Dashboard
+              <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+            </Button>
           </div>
 
-          <div className="bg-slate-50 p-8">
-
-            {/* Welcome */}
-
-            <div className="mb-8">
-
-              <h3 className="text-3xl font-bold">
-                Welcome Back, Ibrahim 👋
-              </h3>
-
-              <p className="text-slate-500 mt-2">
-                Here's your latest programming progress.
-              </p>
-
-            </div>
-
-            {/* Stat Cards */}
-
-            <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
-
-              <div className="bg-white rounded-2xl p-6 shadow-sm border">
-
-                <Code2
-                  className="text-blue-600"
-                  size={30}
-                />
-
-                <p className="mt-4 text-slate-500">
-                  Problems Solved
-                </p>
-
-                <h3 className="text-3xl font-bold">
-                  1280
-                </h3>
-
+          {/* Right Content - Dashboard Preview */}
+          <div className="relative">
+            <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden">
+              <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 border-b border-slate-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex gap-1">
+                      <div className="w-3 h-3 rounded-full bg-red-400"></div>
+                      <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
+                      <div className="w-3 h-3 rounded-full bg-green-400"></div>
+                    </div>
+                    <span className="text-sm font-medium text-slate-700">Dashboard • CodeTrack</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-slate-400" />
+                    <span className="text-xs text-slate-400">Live</span>
+                  </div>
+                </div>
               </div>
-
-              <div className="bg-white rounded-2xl p-6 shadow-sm border">
-
-                <Trophy
-                  className="text-yellow-500"
-                  size={30}
-                />
-
-                <p className="mt-4 text-slate-500">
-                  Rating
-                </p>
-
-                <h3 className="text-3xl font-bold">
-                  1825
-                </h3>
-
-              </div>
-
-              <div className="bg-white rounded-2xl p-6 shadow-sm border">
-
-                <Flame
-                  className="text-red-500"
-                  size={30}
-                />
-
-                <p className="mt-4 text-slate-500">
-                  Contribution
-                </p>
-
-                <h3 className="text-3xl font-bold">
-                  +154
-                </h3>
-
-              </div>
-
-              <div className="bg-white rounded-2xl p-6 shadow-sm border">
-
-                <TrendingUp
-                  className="text-green-600"
-                  size={30}
-                />
-
-                <p className="mt-4 text-slate-500">
-                  Max Rating
-                </p>
-
-                <h3 className="text-3xl font-bold">
-                  1910
-                </h3>
-
-              </div>
-
-            </div>
-
-            {/* Bottom */}
-
-            <div className="grid lg:grid-cols-3 gap-8 mt-10">
-
-              {/* Fake Chart */}
-
-              <div className="lg:col-span-2 bg-white rounded-2xl border p-6">
-
-                <h4 className="font-bold text-xl mb-6">
-                  Rating Progress
-                </h4>
-
-                <div className="h-64 relative">
-
-                  <svg
-                    viewBox="0 0 600 250"
-                    className="w-full h-full"
-                  >
-                    <polyline
-                      fill="none"
-                      stroke="#2563eb"
-                      strokeWidth="5"
-                      points="
-                      20,220
-                      100,180
-                      180,160
-                      260,140
-                      340,120
-                      420,90
-                      500,70
-                      580,45
-                    "
-                    />
-
-                    <line
-                      x1="20"
-                      y1="220"
-                      x2="580"
-                      y2="220"
-                      stroke="#cbd5e1"
-                    />
-
-                    <line
-                      x1="20"
-                      y1="20"
-                      x2="20"
-                      y2="220"
-                      stroke="#cbd5e1"
-                    />
-
-                  </svg>
-
+              <div className="p-6">
+                {/* Chart Placeholder */}
+                <div className="mb-6 p-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-xl border border-slate-100">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-medium text-slate-700">Performance Overview</span>
+                    <span className="text-xs text-slate-400">Last 7 days</span>
+                  </div>
+                  <div className="flex items-end justify-between h-24 gap-1">
+                    {[40, 65, 45, 80, 70, 90, 85].map((height, index) => (
+                      <div key={index} className="flex-1">
+                        <div 
+                          className={`w-full rounded-t-lg transition-all duration-500 ${
+                            index === 5 || index === 6 ? 'bg-gradient-to-t from-blue-500 to-purple-500' : 'bg-slate-200'
+                          }`}
+                          style={{ height: `${height}%` }}
+                        ></div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
-              </div>
-
-              {/* Recent Contests */}
-
-              <div className="bg-white rounded-2xl border p-6">
-
-                <div className="flex items-center gap-2 mb-6">
-
-                  <CalendarDays
-                    className="text-blue-600"
-                  />
-
-                  <h4 className="font-bold">
-                    Recent Contests
-                  </h4>
-
+                {/* Stats Grid */}
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: "Solved", value: "247", change: "+12", color: "blue" },
+                    { label: "Rating", value: "1650", change: "+50", color: "purple" },
+                    { label: "Rank", value: "#42", change: "↑5", color: "green" },
+                  ].map((stat) => (
+                    <div key={stat.label} className={`p-3 bg-${stat.color}-50 rounded-xl`}>
+                      <p className={`text-lg font-bold text-${stat.color}-600`}>{stat.value}</p>
+                      <p className="text-xs text-slate-500">{stat.label}</p>
+                      <p className={`text-xs font-medium text-${stat.color}-600`}>{stat.change}</p>
+                    </div>
+                  ))}
                 </div>
 
-                <div className="space-y-5">
-
-                  <div className="border-b pb-4">
-
-                    <p className="font-semibold">
-                      Codeforces Round #1052
-                    </p>
-
-                    <span className="text-green-600">
-                      +85 Rating
-                    </span>
-
+                {/* Activity Bar */}
+                <div className="mt-4 p-3 bg-slate-50 rounded-xl">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                      <span className="text-xs text-slate-600">Currently solving: "Dynamic Programming"</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Trophy className="w-3 h-3 text-yellow-500" />
+                      <span className="text-xs text-slate-400">Streak: 12</span>
+                    </div>
                   </div>
-
-                  <div className="border-b pb-4">
-
-                    <p className="font-semibold">
-                      Educational Round #181
-                    </p>
-
-                    <span className="text-green-600">
-                      +32 Rating
-                    </span>
-
-                  </div>
-
-                  <div>
-
-                    <p className="font-semibold">
-                      CodeTON Round 11
-                    </p>
-
-                    <span className="text-red-600">
-                      -18 Rating
-                    </span>
-
-                  </div>
-
                 </div>
-
               </div>
-
             </div>
 
+            {/* Floating Badges */}
+            <div className="absolute -top-4 -right-4 animate-float">
+              <div className="p-3 bg-green-500 rounded-2xl shadow-lg">
+                <span className="text-white text-sm font-bold">+12</span>
+                <span className="block text-[10px] text-green-100">This week</span>
+              </div>
+            </div>
+            <div className="absolute -bottom-4 -left-4 animate-float delay-100">
+              <div className="p-3 bg-purple-500 rounded-2xl shadow-lg">
+                <TrendingUp className="w-5 h-5 text-white" />
+                <span className="block text-[10px] text-purple-100">Improving</span>
+              </div>
+            </div>
           </div>
-
         </div>
-
       </div>
     </section>
   );

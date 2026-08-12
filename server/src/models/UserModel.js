@@ -41,13 +41,47 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
+    // Codeforces
+    codeforcesHandle: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+
+    codeforcesRating: {
+      type: Number,
+      default: null,
+    },
+
+    codeforcesMaxRating: {
+      type: Number,
+      default: null,
+    },
+
+    codeforcesRank: {
+      type: String,
+      default: null,
+    },
+
+    codeforcesMaxRank: {
+      type: String,
+      default: null,
+    },
+
+    codeforcesContribution: {
+      type: Number,
+      default: null,
+    },
+
+    codeforcesAvatar: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,
   }
 );
 
-export default mongoose.model(
-  "User",
-  userSchema
-);
+export default mongoose.model("User", userSchema);

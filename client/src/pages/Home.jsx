@@ -1,3 +1,4 @@
+// Home.jsx
 import Navbar from "../components/home/Navbar";
 import Hero from "../components/home/Hero";
 import Stats from "../components/home/Stats";
@@ -11,28 +12,19 @@ import Footer from "../components/home/Footer";
 
 function Home() {
   return (
-    <div className="bg-slate-50 min-h-screen">
-
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-background to-blue-50/30">
       <Navbar />
-
-      <Hero />
-
-      <Stats />
-
-      <Features />
-
-      <DashboardPreview />
-
-      <HowItWorks />
-
-      <Testimonials />
-
-      <FAQ />
-
-      <CTA />
-
+      <main>
+        <Hero />
+        <Stats />
+        <Features />
+        <DashboardPreview />
+        <HowItWorks />
+        <Testimonials />
+        <FAQ />
+        <CTA />
+      </main>
       <Footer />
-
     </div>
   );
 }

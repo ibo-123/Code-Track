@@ -22,15 +22,9 @@ function AppRoutes() {
 
       <Route path="/" element={<Home />} />
 
-      <Route
-        path="/login"
-        element={<Login />}
-      />
+      <Route path="/login" element={<Login />} />
 
-      <Route
-        path="/register"
-        element={<Register />}
-      />
+      <Route path="/register" element={<Register />} />
 
       {/* OTP Verification */}
       <Route
@@ -38,7 +32,7 @@ function AppRoutes() {
         element={<VerifyOtp />}
       />
 
-      {/* Optional: keep old URL working */}
+      {/* Keep old URL working */}
       <Route
         path="/verify-otp"
         element={

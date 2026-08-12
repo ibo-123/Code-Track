@@ -5,7 +5,7 @@ import {
   getRatingHistory,
 } from "../services/codeforces.services.js";
 
-const validateHandle = (handle) => {
+export const validateHandle = (handle) => {
   if (!handle || typeof handle !== "string" || handle.trim() === "") {
     throw new Error("Codeforces handle is required");
   }
@@ -189,7 +189,7 @@ async (
       user.codeforcesHandle
     );
 
-if (!history || history.length === null) {
+if (!history || history.length === 0) {
   return res.status(404).json({
     success: false,
     message: "No rating history found for this user",
