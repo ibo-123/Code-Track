@@ -7,7 +7,10 @@ const userSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-
+   avater : {
+      type : String,
+      default : ""
+   },
     email: {
       type: String,
       required: true,
@@ -15,7 +18,14 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
-
+   phoneNumber :{
+      type : String,
+      default : ""
+   },
+   location:{
+    type : String,
+    default :""
+   } ,
     password: {
       type: String,
       required: true,

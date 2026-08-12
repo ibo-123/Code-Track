@@ -1,6 +1,6 @@
 import express from "express";
 import authMiddleware from "../middlewares/auth.middleware.js";
-import { changePassword } from "../controller/setting.controller.js";
+import { changePassword , updateProfile } from "../controller/setting.controller.js";
 
 const router = express.Router();
 router.put(
@@ -8,5 +8,9 @@ router.put(
   authMiddleware,
   changePassword
 );
-
+router.put(
+  "/update-profile",
+  authMiddleware,
+  updateProfile
+);
 export default router;  

@@ -10,9 +10,10 @@ import {
   RefreshCw,
   Save,
   RotateCcw,
-  Loader2
+  Loader2,
+  Edit2,
+  X
 } from "lucide-react";
-import { Button } from "../ui/button";
 
 // Default configurations
 const defaultThemes = [
@@ -56,7 +57,7 @@ function AppearanceCard({
   showPreview = true,
   showLivePreview = true,
   showReset = true,
-  showSaveButton = false,
+  showSaveButton = true, // Changed to true by default
   title = "Appearance",
   subtitle = "Customize your visual preferences",
   className = "",
@@ -65,11 +66,19 @@ function AppearanceCard({
   resetButtonText = "Reset to Default",
   isControlled = false,
   isLoading = false,
-  isSaving = false
+  isSaving = false,
+  // NEW PROPS for edit mode
+  isEditing = false,
+  onEdit,
+  onCancel,
+  editButtonText = "Edit",
 }) {
+  // Store the original data when entering edit mode
+  const [originalData, setOriginalData] = useState(initialData);
   const [internalData, setInternalData] = useState(initialData);
   const [hasChanges, setHasChanges] = useState(false);
   const [isPreviewExpanded, setIsPreviewExpanded] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   
   // Use either controlled or uncontrolled state
   const data = isControlled ? initialData : internalData;
@@ -78,12 +87,22 @@ function AppearanceCard({
   useEffect(() => {
     if (!isControlled) {
       const hasChanged = 
-        internalData.theme !== initialData.theme ||
-        internalData.colorScheme !== initialData.colorScheme ||
-        internalData.fontSize !== initialData.fontSize;
+        internalData.theme !== originalData.theme ||
+        internalData.colorScheme !== originalData.colorScheme ||
+        internalData.fontSize !== originalData.fontSize;
       setHasChanges(hasChanged);
     }
-  }, [internalData, initialData, isControlled]);
+  }, [internalData, originalData, isControlled]);
+
+  // Reset hasChanges when entering/exiting edit mode
+  useEffect(() => {
+    if (isEditing) {
+      // When entering edit mode, store the current data as original
+      setOriginalData({ ...data });
+      setHasChanges(false);
+      setSaveSuccess(false);
+    }
+  }, [isEditing]);
 
   const updateData = (updates) => {
     const newData = { ...data, ...updates };
@@ -98,27 +117,80 @@ function AppearanceCard({
   };
 
   const handleThemeChange = (themeId) => {
+    if (!isEditing) return; // Only allow changes when editing
+    console.log("🟢 Theme changed to:", themeId);
     updateData({ theme: themeId });
   };
 
   const handleColorSchemeChange = (schemeId) => {
+    if (!isEditing) return; // Only allow changes when editing
+    console.log("🟢 Color scheme changed to:", schemeId);
     updateData({ colorScheme: schemeId });
   };
 
   const handleFontSizeChange = (sizeId) => {
+    if (!isEditing) return; // Only allow changes when editing
+    console.log("🟢 Font size changed to:", sizeId);
     updateData({ fontSize: sizeId });
   };
 
+  const handleEdit = () => {
+    console.log("🟢 AppearanceCard EDIT clicked");
+    // Store current data as original when entering edit mode
+    setOriginalData({ ...data });
+    setHasChanges(false);
+    setSaveSuccess(false);
+    onEdit?.();
+  };
+
+  const handleCancel = () => {
+    console.log("🔴 AppearanceCard CANCEL clicked");
+    console.log("🔴 Restoring original data:", originalData);
+    
+    // Reset to original data
+    if (!isControlled) {
+      setInternalData({ ...originalData });
+    }
+    setHasChanges(false);
+    setSaveSuccess(false);
+    onCancel?.();
+  };
+
   const handleSave = async () => {
+    console.log("🟢 AppearanceCard SAVE clicked");
+    console.log("🟢 Saving data:", data);
+    
     if (onSave) {
-      await onSave(data);
+      try {
+        await onSave(data);
+        // After successful save, update original data to match current
+        setOriginalData({ ...data });
+        setHasChanges(false);
+        setSaveSuccess(true);
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => setSaveSuccess(false), 3000);
+        
+        // Exit edit mode after successful save
+        onCancel?.();
+      } catch (error) {
+        console.error("❌ Save failed:", error);
+      }
+    } else {
+      console.warn("⚠️ onSave prop is not defined");
+      // If no onSave, just exit edit mode
+      onCancel?.();
     }
   };
 
   const handleReset = () => {
+    console.log("🔄 AppearanceCard RESET clicked");
     if (!isControlled) {
       setInternalData(initialData);
+      setOriginalData(initialData);
     }
+    setHasChanges(false);
+    setSaveSuccess(false);
     onReset?.();
   };
 
@@ -141,7 +213,7 @@ function AppearanceCard({
             </h3>
           </div>
           <p className="text-sm text-slate-500 ml-12">
-            {subtitle}
+            {isEditing ? "Customize your visual preferences" : subtitle}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -151,10 +223,33 @@ function AppearanceCard({
               <span className="text-xs font-medium text-purple-600">{previewLabel}</span>
             </div>
           )}
-          {hasChanges && !isControlled && (
+          {hasChanges && !isControlled && isEditing && (
             <div className="px-2 py-1 bg-amber-50 rounded-full">
               <span className="text-xs font-medium text-amber-600">Unsaved changes</span>
             </div>
+          )}
+          {saveSuccess && (
+            <div className="px-2 py-1 bg-green-50 rounded-full">
+              <span className="text-xs font-medium text-green-600">Saved!</span>
+            </div>
+          )}
+          {/* EDIT BUTTON */}
+          {!isEditing && (
+            <button
+              type="button"
+              onClick={handleEdit}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium border border-slate-200 rounded-md hover:bg-purple-50 hover:border-purple-200 transition-colors"
+              style={{ 
+                cursor: 'pointer', 
+                position: 'relative', 
+                zIndex: 10,
+                background: 'white',
+                pointerEvents: 'auto'
+              }}
+            >
+              <Edit2 className="w-4 h-4" />
+              {editButtonText}
+            </button>
           )}
         </div>
       </div>
@@ -220,19 +315,20 @@ function AppearanceCard({
       {/* Theme Selection */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-slate-700 mb-3">
-          Theme Mode
+          Theme Mode {!isEditing && <span className="text-xs text-slate-400 font-normal">(click Edit to change)</span>}
         </label>
         <div className="grid grid-cols-3 gap-3">
           {themes.map(({ id, icon: Icon, label, color, iconColor = "text-white", description }) => (
             <button
               key={id}
               onClick={() => handleThemeChange(id)}
+              disabled={!isEditing}
               className={`relative flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all duration-200 ${
                 data.theme === id
                   ? "border-purple-500 bg-purple-50 shadow-md"
                   : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-              }`}
-              title={description}
+              } ${!isEditing ? "opacity-70 cursor-default" : "cursor-pointer"}`}
+              title={isEditing ? description : "Click Edit to make changes"}
             >
               <div className={`w-10 h-10 rounded-full ${color} flex items-center justify-center transition-transform duration-200 ${
                 data.theme === id ? "scale-110" : "scale-100"
@@ -260,19 +356,20 @@ function AppearanceCard({
       {/* Color Scheme */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-slate-700 mb-3">
-          Color Scheme
+          Color Scheme {!isEditing && <span className="text-xs text-slate-400 font-normal">(click Edit to change)</span>}
         </label>
         <div className="flex gap-3 flex-wrap">
           {colorSchemes.map(({ id, color, ring, label, hex }) => (
             <button
               key={id}
               onClick={() => handleColorSchemeChange(id)}
-              className="relative group"
+              disabled={!isEditing}
+              className={`relative group ${!isEditing ? "opacity-70" : ""}`}
               aria-label={label || id}
             >
               <div className={`w-10 h-10 rounded-full ${color} ring-2 ring-offset-2 transition-all duration-200 ${
                 data.colorScheme === id ? ring : "ring-transparent hover:ring-slate-300"
-              }`} />
+              } ${!isEditing ? "cursor-default" : "cursor-pointer"}`} />
               {data.colorScheme === id && (
                 <div className="absolute -top-1 -right-1">
                   <div className="w-5 h-5 bg-white rounded-full border-2 border-white shadow-sm flex items-center justify-center">
@@ -293,18 +390,19 @@ function AppearanceCard({
       {/* Font Size */}
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-3">
-          Font Size
+          Font Size {!isEditing && <span className="text-xs text-slate-400 font-normal">(click Edit to change)</span>}
         </label>
         <div className="grid grid-cols-4 gap-3">
           {fontSizes.map(({ id, label, value, description, className: fontSizeClass }) => (
             <button
               key={id}
               onClick={() => handleFontSizeChange(id)}
+              disabled={!isEditing}
               className={`p-3 rounded-xl border-2 transition-all duration-200 ${
                 data.fontSize === id
                   ? "border-purple-500 bg-purple-50 shadow-md"
                   : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-              }`}
+              } ${!isEditing ? "opacity-70 cursor-default" : "cursor-pointer"}`}
             >
               <p className={`text-center text-slate-700 ${fontSizeClass || ''}`}>
                 {label}
@@ -319,39 +417,47 @@ function AppearanceCard({
         </div>
       </div>
 
-      {/* Actions */}
-      {(showSaveButton || showReset) && (
+      {/* Actions - Show when editing */}
+      {isEditing && (
         <div className="mt-6 pt-4 border-t border-slate-200 flex items-center gap-3">
-          {showSaveButton && (
-            <Button
-              onClick={handleSave}
-              disabled={isSaving || isLoading}
-              className="flex-1 gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  {saveButtonText}
-                </>
-              )}
-            </Button>
-          )}
+          <button
+            type="button"
+            onClick={handleCancel}
+            disabled={isSaving || isLoading}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium border border-slate-200 rounded-md hover:bg-slate-50 transition-colors"
+          >
+            <X className="w-4 h-4" />
+            Cancel
+          </button>
+          
+          <button
+            onClick={handleSave}
+            disabled={isSaving || isLoading || !hasChanges}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-md bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                {saveButtonText}
+              </>
+            )}
+          </button>
           
           {showReset && (
-            <Button
-              variant="outline"
+            <button
+              type="button"
               onClick={handleReset}
               disabled={isLoading || isSaving}
-              className="gap-2"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium border border-slate-200 rounded-md hover:bg-slate-50 transition-colors"
             >
               <RotateCcw className="w-4 h-4" />
               {resetButtonText}
-            </Button>
+            </button>
           )}
         </div>
       )}

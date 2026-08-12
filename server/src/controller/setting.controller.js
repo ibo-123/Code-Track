@@ -61,3 +61,57 @@ export const changePassword = async (req, res) => {
   }
 
 };
+export const updateProfile = async (req, res) => {
+
+  try {
+
+    const {
+      name,
+      email,
+      phoneNumber,
+      location,
+    } = req.body;
+
+    if (!name || !email) {
+
+      return res.status(400).json({
+        success:false,
+        message:"Name, email, and avatar are required"
+      });
+
+    }
+ if (req.file){
+  const avater = req.file.path;
+ }
+ else{
+  const avater = "";
+ }
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      {
+        name,
+        email,
+        phoneNumber,
+        location,
+        avater,
+      },
+      { new:true }
+    ).select("-password");
+
+    return res.json({
+      success:true,
+      message:"Profile updated successfully",
+      user
+    });
+  }
+  catch(error){
+
+    console.error(error);
+    return res.status(500).json({
+      success:false,
+      message:"Server Error"
+    });
+
+  }
+
+};
