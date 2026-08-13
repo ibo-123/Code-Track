@@ -8,6 +8,8 @@ import settingsRoutes from "./routes/setting.route.js";
 import contestRoutes from "./routes/contets.route.js";
 import analyticsRoutes from "./routes/analytics.route.js";
 import cors from "cors";
+import path from "path";
+
 
 dotenv.config();
 const app = express();
@@ -21,17 +23,21 @@ app.use(
     origin(origin, callback) {
       // Allow requests with no Origin (e.g. Postman)
       if (!origin) return callback(null, true);
-
+      
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
-
+      
       return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
   })
 );
 // app.use(
+  app.use(
+    "/uploads",
+    express.static(path.join(process.cwd(), "uploads"))
+  );
 //   cors({
 //     origin: "https://code-track-nine.vercel.app",
 //     credentials: true,

@@ -13,8 +13,8 @@ import AccountCard from "../components/setting/AccountCard";
 import AppearanceCard from "../components/setting/AppearanceCard";
 import NotificationCard from "../components/setting/NotificationCard";
 import LogoutCard from "../components/setting/LogoutCard";
-import { updateProfile } from "@/services/userService";
-
+// import { updateProfile } from "@/services/userService";
+import { updateProfile } from "../services/profileService";
 function Settings() {
   const [activeSection, setActiveSection] =
     useState(null);
@@ -23,6 +23,7 @@ function Settings() {
    * IMPORTANT
    * Settings owns the AccountCard edit state.
    */
+  const [avatarFile, setAvatarFile] = useState(null);
   const [isEditingAccount, setIsEditingAccount] = useState(false);
 
   /*
@@ -72,6 +73,7 @@ function Settings() {
     );
 
     setIsEditingAccount(false);
+    setAvatarFile(null);
     setActiveSection(null);
   };
 
@@ -81,45 +83,40 @@ function Settings() {
    * --------------------------------------------------
    */
 
-  const handleAccountSave = async (
-    updatedData
-  ) => {
-    try {
-      const response = await updateProfile(updatedData);
-      console.log(
-        "Settings.jsx: Saving account:",
-        updatedData
-      );
+  const handleAccountSave = async (updatedData) => {
+  try {
+    console.log("Saving profile:", updatedData);
+    console.log("Avatar:", avatarFile);
 
-      /*
-       * For now update local state.
-       *
-       * Later you can replace this with:
-       *
-       * await updateProfile(updatedData);
-       */
+    const response = await updateProfile(
+      updatedData,
+      avatarFile
+    );
 
-      setUserData((previous) => ({
-        ...previous,
-        ...updatedData,
-      }));
+    console.log("Profile update response:", response);
 
-      /*
-       * Exit edit mode.
-       */
+    if (response.success) {
+      setUserData(response.user);
+
+      setAvatarFile(null);
       setIsEditingAccount(false);
       setActiveSection(null);
 
-      return true;
-    } catch (error) {
-      console.error(
-        "Settings.jsx: Failed to update account:",
-        error
-      );
-
-      throw error;
+      return response;
     }
-  };
+
+    throw new Error(
+      response.message || "Failed to update profile"
+    );
+  } catch (error) {
+    console.error(
+      "Profile update failed:",
+      error.response?.data || error
+    );
+
+    throw error;
+  }
+};
 
   /*
    * --------------------------------------------------
@@ -217,28 +214,13 @@ console.log("Settings: Rendering with isEditingAccount =", isEditingAccount);
             <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
             <AccountCard
-              userData={userData}
-
-              /*
-               * IMPORTANT:
-               * Settings controls this state.
-               */
-              isEditing={isEditingAccount}
-
-              onEdit={handleAccountEdit}
-
-              onCancel={handleAccountCancel}
-
-              onSave={handleAccountSave}
-
-              onAvatarChange={
-                handleAvatarChange
-              }
-
-              successMessage="Account updated successfully!"
-
-              errorMessage="Failed to update account. Please try again."
-            />
+  userData={userData}
+  isEditing={isEditingAccount}
+  onEdit={handleAccountEdit}
+  onCancel={handleAccountCancel}
+  onSave={handleAccountSave}
+  onAvatarChange={handleAvatarChange}
+/>
           </div>
 
           {/* APPEARANCE */}
