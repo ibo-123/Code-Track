@@ -1,16 +1,21 @@
 import express from "express";
-import authMiddleware from "../middlewares/auth.middleware.js";
-import { changePassword , updateProfile } from "../controller/setting.controller.js";
+import { 
+  getProfile, 
+  updateProfile, 
+  changePassword 
+} from "../controller/setting.controller.js";
+import  authMiddleware from "../middlewares/auth.middleware.js";
+import upload from "../middlewares/upload.middleware.js";
 
 const router = express.Router();
-router.put(
-  "/change-password",
-  authMiddleware,
-  changePassword
-);
-router.put(
-  "/update-profile",
-  authMiddleware,
-  updateProfile
-);
-export default router;  
+
+// GET profile - authenticated
+router.get('/users/profile', authMiddleware, getProfile);
+
+// PUT profile - update with optional avatar
+router.put('/users/profile', authMiddleware, upload.single('avatar'), updateProfile);
+
+// PUT change password
+router.put('/users/password', authMiddleware, changePassword);
+
+export default router;

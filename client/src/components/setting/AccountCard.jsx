@@ -40,9 +40,9 @@ function AccountCard({
   onAvatarChange,
   isLoading: externalIsLoading = false,
   className = "",
-  editableFields = ["name", "email", "phone", "location"],
-  showJoined = false,
-  showBio = false,
+  editableFields = ["name", "email", "phone", "location", "bio"],
+  showJoined = true,
+  showBio = true,
   avatarColor = "from-blue-400 to-purple-400",
   gradientClass = "from-blue-500 to-purple-500",
   validationRules = {},
@@ -52,7 +52,7 @@ function AccountCard({
   saveButtonText = "Save Changes",
   editButtonText = "Edit",
 }) {
-  // Simple state management
+  // State management
   const [formData, setFormData] = useState(() => normalizeUserData(initialUserData));
   const [displayData, setDisplayData] = useState(() => normalizeUserData(initialUserData));
   const [isLoading, setIsLoading] = useState(false);
@@ -61,20 +61,23 @@ function AccountCard({
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [avatarPreview, setAvatarPreview] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
   const fileInputRef = useRef(null);
 
   const loading = externalIsLoading || isLoading;
 
   // Update data when props change
   useEffect(() => {
-    console.log("🔵 AccountCard useEffect - isEditing:", isEditing);
+    console.log("[AccountCard] Props updated - isEditing:", isEditing);
     const safeData = normalizeUserData(initialUserData);
     setDisplayData(safeData);
     
     // Only reset form when NOT editing
     if (!isEditing) {
-      console.log("🔵 Resetting form data");
+      console.log("[AccountCard] Resetting form data");
       setFormData(safeData);
+      setAvatarPreview(null);
+      setSelectedFile(null);
     }
   }, [initialUserData, isEditing]);
 
@@ -129,15 +132,12 @@ function AccountCard({
     return valid;
   };
 
-  // 🔴 CRITICAL FIX: Edit handler with debugging
   const handleEdit = (e) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
-    console.log("🟢🟢🟢 EDIT BUTTON WAS CLICKED 🟢🟢🟢");
-    console.log("🟢 Current isEditing:", isEditing);
-    console.log("🟢 Current initialUserData:", initialUserData);
+    console.log("[AccountCard] Edit clicked");
     
     const safeData = normalizeUserData(initialUserData);
     setFormData({ ...safeData });
@@ -146,48 +146,56 @@ function AccountCard({
     setSaveError("");
     setIsSaved(false);
     setAvatarPreview(null);
+    setSelectedFile(null);
     
     if (onEdit) {
-      console.log("🟢 Calling onEdit()");
       onEdit();
-    } else {
-      console.warn("⚠️ onEdit prop is not defined");
     }
   };
 
   const handleCancel = () => {
-    console.log("🔴 CANCEL clicked");
+    console.log("[AccountCard] Cancel clicked");
     const safeData = normalizeUserData(initialUserData);
     setFormData({ ...safeData });
     setErrors({});
     setTouched({});
     setSaveError("");
     setAvatarPreview(null);
+    setSelectedFile(null);
     if (onCancel) onCancel();
   };
 
   const handleSave = async () => {
-    console.log("🟢 SAVE clicked");
+    console.log("[AccountCard] Save clicked");
+    
     if (!validateForm()) {
-      console.log("❌ Validation failed");
+      console.log("[AccountCard] Validation failed");
       return;
     }
+    
     if (typeof onSave !== "function") {
       setSaveError("Unable to save changes. Please try again.");
       return;
     }
+    
     try {
       setIsLoading(true);
       setSaveError("");
       setIsSaved(false);
-      console.log("🟢 Saving data:", formData);
-      await onSave(formData);
+      
+      console.log("[AccountCard] Saving data:", formData);
+      
+      // IMPORTANT: Send both form data AND the selected file
+      await onSave(formData, selectedFile);
+      
       setDisplayData({ ...formData });
       setAvatarPreview(null);
+      setSelectedFile(null);
       setIsSaved(true);
+      
       setTimeout(() => setIsSaved(false), 3000);
     } catch (error) {
-      console.error("❌ Save error:", error);
+      console.error("[AccountCard] Save error:", error);
       setSaveError(error?.response?.data?.message || error?.message || errorMessage);
     } finally {
       setIsLoading(false);
@@ -227,26 +235,44 @@ function AccountCard({
   const handleAvatarChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    
+    // Validate file
     if (!file.type.startsWith("image/")) {
       setSaveError("Please select a valid image file.");
+      e.target.value = "";
       return;
     }
+    
     if (file.size > 5 * 1024 * 1024) {
       setSaveError("Image size must be less than 5 MB.");
+      e.target.value = "";
       return;
     }
+    
+    console.log("[AccountCard] Avatar selected:", file.name, file.size, "bytes");
     setSaveError("");
+    
+    // CRITICAL FIX: Store the File object locally
+    setSelectedFile(file);
+    
+    // Create preview
     const reader = new FileReader();
-    reader.onloadend = () => setAvatarPreview(reader.result);
+    reader.onloadend = () => {
+      setAvatarPreview(reader.result);
+    };
     reader.readAsDataURL(file);
-    try {
-      if (typeof onAvatarChange === "function") {
+    
+    // Notify parent about avatar selection
+    if (typeof onAvatarChange === "function") {
+      try {
         await onAvatarChange(file);
+        console.log("[AccountCard] Avatar change notification sent to parent");
+      } catch (error) {
+        console.error("[AccountCard] Avatar change notification failed:", error);
+        setAvatarPreview(null);
+        setSelectedFile(null);
+        setSaveError(error?.message || "Failed to process avatar.");
       }
-    } catch (error) {
-      console.error("Avatar upload error:", error);
-      setAvatarPreview(null);
-      setSaveError(error?.response?.data?.message || error?.message || "Failed to upload avatar.");
     }
   };
 
@@ -263,18 +289,19 @@ function AccountCard({
   };
 
   const displayFields = ["name", "email", "phone", "location"];
-  if (showJoined && Object.prototype.hasOwnProperty.call(displayData, "joined")) {
+  if (showJoined && displayData.joined) {
     displayFields.push("joined");
   }
-  if (showBio && Object.prototype.hasOwnProperty.call(displayData, "bio")) {
+  if (showBio && editableFields.includes("bio")) {
     displayFields.push("bio");
   }
 
+  // Priority: local preview > server avatar > initial fallback
   const avatarSource = avatarPreview || displayData.avatar || "";
 
-  console.log("🟣 AccountCard Render - isEditing:", isEditing);
-  console.log("🟣 DisplayData:", displayData);
-  console.log("🟣 FormData:", formData);
+  console.log("[AccountCard] Render - isEditing:", isEditing);
+  console.log("[AccountCard] Avatar source:", avatarSource ? "present" : "empty");
+  console.log("[AccountCard] Selected file:", selectedFile ? selectedFile.name : "none");
 
   return (
     <div 
@@ -287,7 +314,11 @@ function AccountCard({
           <div className="relative">
             <div className="w-24 h-24 rounded-full border-4 border-white bg-white overflow-hidden shadow-lg">
               {avatarSource ? (
-                <img src={avatarSource} alt={displayData.name || "User avatar"} className="w-full h-full object-cover" />
+                <img 
+                  src={avatarSource} 
+                  alt={displayData.name || "User avatar"} 
+                  className="w-full h-full object-cover"
+                />
               ) : (
                 <div className={`w-full h-full bg-gradient-to-br ${avatarColor} flex items-center justify-center`}>
                   <span className="text-3xl font-bold text-white">
@@ -302,11 +333,17 @@ function AccountCard({
                   type="button"
                   onClick={handleAvatarClick}
                   disabled={loading}
-                  className="absolute bottom-0 right-0 p-1.5 bg-blue-500 rounded-full border-2 border-white hover:bg-blue-600 disabled:opacity-50"
+                  className="absolute bottom-0 right-0 p-1.5 bg-blue-500 rounded-full border-2 border-white hover:bg-blue-600 disabled:opacity-50 transition-colors"
                 >
                   <Camera className="w-3.5 h-3.5 text-white" />
                 </button>
-                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+                <input 
+                  ref={fileInputRef} 
+                  type="file" 
+                  accept="image/jpeg,image/jpg,image/png,image/webp,image/gif" 
+                  onChange={handleAvatarChange} 
+                  className="hidden" 
+                />
               </>
             )}
           </div>
@@ -335,18 +372,11 @@ function AccountCard({
                 background: 'white',
                 pointerEvents: 'auto'
               }}
-              data-testid="edit-button"
-              id="edit-account-button"
             >
               <Edit2 className="w-4 h-4" />
               {editButtonText}
             </button>
           )}
-        </div>
-
-        {/* DEBUG: Show button state */}
-        <div style={{ fontSize: '10px', color: '#666', marginBottom: '8px' }}>
-          Debug: isEditing = {String(isEditing)} | Button visible: {String(!isEditing)}
         </div>
 
         {/* Success/Error Messages */}
@@ -366,7 +396,9 @@ function AccountCard({
         {/* Fields */}
         <div className="space-y-4">
           {displayFields.map((field) => {
-            const editable = editableFields.includes(field) && isEditing;
+            // 'joined' is read-only
+            const isJoined = field === "joined";
+            const editable = editableFields.includes(field) && isEditing && !isJoined;
             const value = editable ? formData[field] ?? "" : displayData[field] ?? "";
             const hasError = Boolean(errors[field]) && Boolean(touched[field]);
 
@@ -421,7 +453,6 @@ function AccountCard({
               {cancelButtonText}
             </button>
             <button
-              OnC
               type="button"
               onClick={handleSave}
               disabled={loading}
