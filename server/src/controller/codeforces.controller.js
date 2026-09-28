@@ -50,6 +50,12 @@ export const connectCodeforces = async (
 
         {
           codeforcesHandle: cfUser.handle,
+          codeforcesRating: cfUser.rating ?? null,
+          codeforcesMaxRating: cfUser.maxRating ?? null,
+          codeforcesRank: cfUser.rank ?? null,
+          codeforcesMaxRank: cfUser.maxRank ?? null,
+          codeforcesContribution: cfUser.contribution ?? null,
+          codeforcesAvatar: cfUser.avatar ?? null,
         },
 
         {
@@ -57,7 +63,7 @@ export const connectCodeforces = async (
         }
 
       )
-      .select("-password");
+      .select("-password -verificationOtp -verificationOtpExpires");
 
 
 

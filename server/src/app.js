@@ -5,7 +5,7 @@ import userRoutes from "./routes/user.routes.js";
 import codeforcesRoutes from "./routes/codeforces.route.js";
 import dashboardRoutes from "./routes/dashboard.route.js";
 import settingsRoutes from "./routes/setting.route.js";
-import contestRoutes from "./routes/contets.route.js";
+import contestRoutes from "./routes/contests.route.js";
 import analyticsRoutes from "./routes/analytics.route.js";
 import cors from "cors";
 import path from "path";

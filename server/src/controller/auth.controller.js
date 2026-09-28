@@ -68,33 +68,16 @@ export const register = async (req, res) => {
       verificationOtpExpires: otpExpires,
     });
 
-    console.log(
-      "Generated OTP:",
-      otp
-    );
-
-    console.log(
-      "OTP expiry:",
-      otpExpires
-    );
-
     try {
       await sendVerificationOtp(
         user.email,
         user.name,
         otp
       );
-
-      console.log(
-        "✅ Verification OTP sent to:",
-        user.email
-      );
-
     } catch (emailError) {
 
       console.error(
-        "❌ Verification OTP failed:",
-        emailError.message
+        "Verification OTP email failed"
       );
 
       // Delete account if email could not be sent

@@ -65,15 +65,11 @@ function AccountCard({
 
   const loading = externalIsLoading || isLoading;
 
-  // Update data when props change
   useEffect(() => {
-    console.log("🔵 AccountCard useEffect - isEditing:", isEditing);
     const safeData = normalizeUserData(initialUserData);
     setDisplayData(safeData);
-    
-    // Only reset form when NOT editing
+
     if (!isEditing) {
-      console.log("🔵 Resetting form data");
       setFormData(safeData);
     }
   }, [initialUserData, isEditing]);
@@ -129,16 +125,12 @@ function AccountCard({
     return valid;
   };
 
-  // 🔴 CRITICAL FIX: Edit handler with debugging
   const handleEdit = (e) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
-    console.log("🟢🟢🟢 EDIT BUTTON WAS CLICKED 🟢🟢🟢");
-    console.log("🟢 Current isEditing:", isEditing);
-    console.log("🟢 Current initialUserData:", initialUserData);
-    
+
     const safeData = normalizeUserData(initialUserData);
     setFormData({ ...safeData });
     setErrors({});
@@ -146,30 +138,22 @@ function AccountCard({
     setSaveError("");
     setIsSaved(false);
     setAvatarPreview(null);
-    
-    if (onEdit) {
-      console.log("🟢 Calling onEdit()");
-      onEdit();
-    } else {
-      console.warn("⚠️ onEdit prop is not defined");
-    }
+
+    onEdit?.();
   };
 
   const handleCancel = () => {
-    console.log("🔴 CANCEL clicked");
     const safeData = normalizeUserData(initialUserData);
     setFormData({ ...safeData });
     setErrors({});
     setTouched({});
     setSaveError("");
     setAvatarPreview(null);
-    if (onCancel) onCancel();
+    onCancel?.();
   };
 
   const handleSave = async () => {
-    console.log("🟢 SAVE clicked");
     if (!validateForm()) {
-      console.log("❌ Validation failed");
       return;
     }
     if (typeof onSave !== "function") {
@@ -180,14 +164,12 @@ function AccountCard({
       setIsLoading(true);
       setSaveError("");
       setIsSaved(false);
-      console.log("🟢 Saving data:", formData);
       await onSave(formData);
       setDisplayData({ ...formData });
       setAvatarPreview(null);
       setIsSaved(true);
       setTimeout(() => setIsSaved(false), 3000);
     } catch (error) {
-      console.error("❌ Save error:", error);
       setSaveError(error?.response?.data?.message || error?.message || errorMessage);
     } finally {
       setIsLoading(false);
@@ -272,14 +254,9 @@ function AccountCard({
 
   const avatarSource = avatarPreview || displayData.avatar || "";
 
-  console.log("🟣 AccountCard Render - isEditing:", isEditing);
-  console.log("🟣 DisplayData:", displayData);
-  console.log("🟣 FormData:", formData);
-
   return (
-    <div 
+    <div
       className={`bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden ${className}`}
-      style={{ position: 'relative', zIndex: 1 }}
     >
       {/* Header */}
       <div className={`relative h-24 bg-gradient-to-r ${gradientClass}`}>
@@ -327,26 +304,12 @@ function AccountCard({
             <button
               type="button"
               onClick={handleEdit}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium border border-slate-200 rounded-md hover:bg-blue-50 hover:border-blue-200 transition-colors"
-              style={{ 
-                cursor: 'pointer', 
-                position: 'relative', 
-                zIndex: 10,
-                background: 'white',
-                pointerEvents: 'auto'
-              }}
-              data-testid="edit-button"
-              id="edit-account-button"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium border border-slate-200 rounded-md hover:bg-blue-50 hover:border-blue-200 transition-colors bg-white"
             >
               <Edit2 className="w-4 h-4" />
               {editButtonText}
             </button>
           )}
-        </div>
-
-        {/* DEBUG: Show button state */}
-        <div style={{ fontSize: '10px', color: '#666', marginBottom: '8px' }}>
-          Debug: isEditing = {String(isEditing)} | Button visible: {String(!isEditing)}
         </div>
 
         {/* Success/Error Messages */}
@@ -421,7 +384,6 @@ function AccountCard({
               {cancelButtonText}
             </button>
             <button
-              OnC
               type="button"
               onClick={handleSave}
               disabled={loading}
