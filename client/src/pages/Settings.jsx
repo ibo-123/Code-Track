@@ -1,374 +1,145 @@
 import { useEffect, useState } from "react";
-
-import {
-  Bell,
-  ChevronRight,
-  Globe,
-  HelpCircle,
-  Shield,
-  Smartphone,
-} from "lucide-react";
+import { toast } from "sonner";
 
 import AccountCard from "../components/setting/AccountCard";
-import AppearanceCard from "../components/setting/AppearanceCard";
-import NotificationCard from "../components/setting/NotificationCard";
+import ChangePassword from "../components/setting/ChangePassword";
 import LogoutCard from "../components/setting/LogoutCard";
-// import { updateProfile } from "@/services/userService";
+import { getProfile } from "../services/userService";
 import { updateProfile } from "../services/profileService";
-function Settings() {
-  const [activeSection, setActiveSection] =
-    useState(null);
+import { useAuth } from "../context/AuthContext";
+import { resolveMediaUrl } from "../lib/utils";
 
-  /*
-   * IMPORTANT
-   * Settings owns the AccountCard edit state.
-   */
+function mapUserToCard(user) {
+  if (!user) {
+    return {
+      name: "",
+      email: "",
+      phone: "",
+      location: "",
+      avatar: "",
+      joined: "",
+    };
+  }
+
+  return {
+    name: user.name || "",
+    email: user.email || "",
+    phone: user.phoneNumber || "",
+    location: user.location || "",
+    avatar: resolveMediaUrl(user.avatar || user.avater || ""),
+    joined: user.createdAt
+      ? new Date(user.createdAt).toLocaleDateString()
+      : "",
+  };
+}
+
+function Settings() {
+  const { user, setUser, refreshUser, logout } = useAuth();
+  const [userData, setUserData] = useState(() => mapUserToCard(user));
   const [avatarFile, setAvatarFile] = useState(null);
   const [isEditingAccount, setIsEditingAccount] = useState(false);
-
-  /*
-   * User data
-   */
-  const [userData, setUserData] = useState({
-    name: "User",
-    email: "",
-    phone: "",
-    location: "",
-    avatar: "",
-    joined: "",
-    bio: "",
-  });
-
-  /*
-   * --------------------------------------------------
-   * ACCOUNT EDIT
-   * --------------------------------------------------
-   */
-
-  const handleAccountEdit = () => {
-    console.log(
-      "Settings.jsx: Account edit clicked"
-    );
-
-    setIsEditingAccount(true);
-    setActiveSection("account");
-  };
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
-    console.log(
-      "Settings.jsx: isEditingAccount",
-      isEditingAccount
-    );
-  }, [isEditingAccount]);
+    let cancelled = false;
 
-  /*
-   * --------------------------------------------------
-   * ACCOUNT CANCEL
-   * --------------------------------------------------
-   */
+    const load = async () => {
+      setLoadingProfile(true);
+      setLoadError("");
+      try {
+        const data = await getProfile();
+        if (cancelled) return;
+        setUserData(mapUserToCard(data.user));
+        setUser(data.user);
+      } catch (error) {
+        if (cancelled) return;
+        setLoadError(
+          error.response?.data?.message || "Failed to load account settings"
+        );
+      } finally {
+        if (!cancelled) setLoadingProfile(false);
+      }
+    };
 
-  const handleAccountCancel = () => {
-    console.log(
-      "Settings.jsx: Account edit cancelled"
-    );
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [setUser]);
 
-    setIsEditingAccount(false);
-    setAvatarFile(null);
-    setActiveSection(null);
+  const handleAccountEdit = () => {
+    setIsEditingAccount(true);
   };
 
-  /*
-   * --------------------------------------------------
-   * ACCOUNT SAVE
-   * --------------------------------------------------
-   */
+  const handleAccountCancel = () => {
+    setIsEditingAccount(false);
+    setAvatarFile(null);
+  };
 
   const handleAccountSave = async (updatedData) => {
-  try {
-    console.log("Saving profile:", updatedData);
-    console.log("Avatar:", avatarFile);
-
     const response = await updateProfile(
-      updatedData,
+      {
+        name: updatedData.name,
+        phone: updatedData.phone,
+        location: updatedData.location,
+      },
       avatarFile
     );
 
-    console.log("Profile update response:", response);
-
-    if (response.success) {
-      setUserData(response.user);
-
-      setAvatarFile(null);
-      setIsEditingAccount(false);
-      setActiveSection(null);
-
-      return response;
+    if (!response.success) {
+      throw new Error(response.message || "Failed to update profile");
     }
 
-    throw new Error(
-      response.message || "Failed to update profile"
-    );
-  } catch (error) {
-    console.error(
-      "Profile update failed:",
-      error.response?.data || error
-    );
-
-    throw error;
-  }
-};
-
-  /*
-   * --------------------------------------------------
-   * AVATAR
-   * --------------------------------------------------
-   */
-
-  const handleAvatarChange = async (file) => {
-    try {
-      console.log(
-        "Settings.jsx: Avatar selected:",
-        file
-      );
-
-      /*
-       * Temporary local preview.
-       *
-       * Later upload the file to your backend.
-       */
-
-      const reader = new FileReader();
-
-      reader.onloadend = () => {
-        setUserData((previous) => ({
-          ...previous,
-          avatar: reader.result,
-        }));
-      };
-
-      reader.readAsDataURL(file);
-
-      return true;
-    } catch (error) {
-      console.error(
-        "Settings.jsx: Avatar update failed:",
-        error
-      );
-
-      throw error;
-    }
+    setUserData(mapUserToCard(response.user));
+    setUser(response.user);
+    setAvatarFile(null);
+    setIsEditingAccount(false);
+    await refreshUser();
+    toast.success("Account updated successfully");
+    return response;
   };
 
-  /*
-   * --------------------------------------------------
-   * RENDER
-   * --------------------------------------------------
-   */
-  // In Settings.jsx, add this before the return statement
-console.log("Settings: Rendering with isEditingAccount =", isEditingAccount);
+  const handleAvatarChange = async (file) => {
+    setAvatarFile(file);
+    return true;
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* HEADER */}
-
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
-                Settings
-              </h1>
-
-              <p className="text-slate-500 mt-2">
-                Manage your account and application
-                preferences
-              </p>
-            </div>
-
-            <div className="hidden md:flex items-center gap-4">
-              <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-sm border border-slate-100">
-                <Shield className="w-4 h-4 text-green-500" />
-
-                <span className="text-sm font-medium text-slate-700">
-                  Secure
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-sm border border-slate-100">
-                <Globe className="w-4 h-4 text-blue-500" />
-
-                <span className="text-sm font-medium text-slate-700">
-                  v2.0.1
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* SETTINGS GRID */}
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* ACCOUNT */}
-
-          <div className="group relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-            <AccountCard
-  userData={userData}
-  isEditing={isEditingAccount}
-  onEdit={handleAccountEdit}
-  onCancel={handleAccountCancel}
-  onSave={handleAccountSave}
-  onAvatarChange={handleAvatarChange}
-/>
-          </div>
-
-          {/* APPEARANCE */}
-
-          <div className="group relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 to-pink-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-            <AppearanceCard />
-          </div>
-
-          {/* NOTIFICATIONS */}
-
-          <div className="group relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-green-500/5 to-teal-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-            <NotificationCard />
-          </div>
-
-          {/* LOGOUT */}
-
-          <div className="group relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-red-500/5 to-orange-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-            <LogoutCard />
-          </div>
-        </div>
-
-        {/* QUICK ACTIONS */}
-
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* MOBILE */}
-
-          <button
-            type="button"
-            onClick={() =>
-              setActiveSection("mobile")
-            }
-            className="flex items-center justify-between p-4 bg-white rounded-xl shadow-sm border border-slate-100 hover:border-blue-200 hover:shadow-md transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-50 rounded-lg">
-                <Smartphone className="w-5 h-5 text-blue-600" />
-              </div>
-
-              <div className="text-left">
-                <p className="text-sm font-medium text-slate-700">
-                  Mobile App
-                </p>
-
-                <p className="text-xs text-slate-400">
-                  Download the app
-                </p>
-              </div>
-            </div>
-
-            <ChevronRight className="w-4 h-4 text-slate-400" />
-          </button>
-
-          {/* HELP */}
-
-          <button
-            type="button"
-            onClick={() =>
-              setActiveSection("help")
-            }
-            className="flex items-center justify-between p-4 bg-white rounded-xl shadow-sm border border-slate-100 hover:border-purple-200 hover:shadow-md transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-50 rounded-lg">
-                <HelpCircle className="w-5 h-5 text-purple-600" />
-              </div>
-
-              <div className="text-left">
-                <p className="text-sm font-medium text-slate-700">
-                  Help & Support
-                </p>
-
-                <p className="text-xs text-slate-400">
-                  Get assistance
-                </p>
-              </div>
-            </div>
-
-            <ChevronRight className="w-4 h-4 text-slate-400" />
-          </button>
-
-          {/* SECURITY */}
-
-          <button
-            type="button"
-            onClick={() =>
-              setActiveSection("security")
-            }
-            className="flex items-center justify-between p-4 bg-white rounded-xl shadow-sm border border-slate-100 hover:border-green-200 hover:shadow-md transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-50 rounded-lg">
-                <Shield className="w-5 h-5 text-green-600" />
-              </div>
-
-              <div className="text-left">
-                <p className="text-sm font-medium text-slate-700">
-                  Privacy & Security
-                </p>
-
-                <p className="text-xs text-slate-400">
-                  Manage your data
-                </p>
-              </div>
-            </div>
-
-            <ChevronRight className="w-4 h-4 text-slate-400" />
-          </button>
-        </div>
-
-        {/* FOOTER */}
-
-        <div className="mt-8 pt-6 border-t border-slate-200/50">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-xs text-slate-400">
-              © 2026 Your App. All rights reserved.
-            </p>
-
-            <div className="flex items-center gap-6">
-              <button
-                type="button"
-                className="text-xs text-slate-400 hover:text-slate-600"
-              >
-                Privacy Policy
-              </button>
-
-              <button
-                type="button"
-                className="text-xs text-slate-400 hover:text-slate-600"
-              >
-                Terms of Service
-              </button>
-
-              <button
-                type="button"
-                className="text-xs text-slate-400 hover:text-slate-600"
-              >
-                Cookie Settings
-              </button>
-            </div>
-          </div>
-        </div>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold text-slate-900">Settings</h1>
+        <p className="text-slate-500 mt-1">
+          Manage your CodeTrack account and security
+        </p>
       </div>
+
+      {loadingProfile ? (
+        <p className="text-sm text-slate-500">Loading account…</p>
+      ) : loadError ? (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
+          {loadError}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <AccountCard
+            userData={userData}
+            isEditing={isEditingAccount}
+            onEdit={handleAccountEdit}
+            onCancel={handleAccountCancel}
+            onSave={handleAccountSave}
+            onAvatarChange={handleAvatarChange}
+            editableFields={["name", "phone", "location"]}
+            showJoined
+          />
+
+          <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
+            <ChangePassword />
+          </div>
+
+          <LogoutCard user={user} onLogout={logout} />
+        </div>
+      )}
     </div>
   );
 }

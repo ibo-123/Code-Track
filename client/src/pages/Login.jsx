@@ -8,12 +8,9 @@ import {
   Eye, 
   EyeOff,
   AlertCircle,
-  CheckCircle,
   ArrowRight,
   Code2,
   Shield,
-  Fingerprint,
-
 } from "lucide-react";
 
 import { loginUser } from "../services/authService";
@@ -22,34 +19,6 @@ import { toast } from "sonner";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 
-// Custom Chrome icon as a fallback
-const ChromeIcon = ({ className }) => (
-  <svg 
-    className={className} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round"
-  >
-    <circle cx="12" cy="12" r="10"/>
-    <circle cx="12" cy="12" r="4"/>
-    <line x1="21.17" y1="8" x2="12" y2="8"/>
-    <line x1="3.95" y1="6.06" x2="8.54" y2="14"/>
-    <line x1="10.88" y1="21.94" x2="15.46" y2="14"/>
-  </svg>
-);
-const Github = ({ className }) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    fill="currentColor"
-    aria-hidden="true"
-  >
-    <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.49.5.092.682-.217.682-.483 0-.237-.009-.866-.013-1.7-2.782.604-3.369-1.342-3.369-1.342-.455-1.157-1.11-1.465-1.11-1.465-.908-.62.069-.608.069-.608 1.004.071 1.532 1.03 1.532 1.03.892 1.529 2.341 1.087 2.91.831.091-.646.349-1.087.635-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0 1 12 6.844a9.56 9.56 0 0 1 2.504.337c1.909-1.294 2.748-1.025 2.748-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.744 0 .268.18.58.688.482A10.002 10.002 0 0 0 22 12C22 6.477 17.523 2 12 2Z" />
-  </svg>
-);
 function Login() {
   const navigate = useNavigate();
   const { saveToken } = useAuth();
@@ -150,7 +119,7 @@ function Login() {
 
     try {
       const data = await loginUser(form);
-      saveToken(data.token);
+      saveToken(data.token, data.user);
 
       if (rememberMe) {
         localStorage.setItem("rememberedEmail", form.email);
@@ -181,15 +150,6 @@ function Login() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const fillDemoCredentials = () => {
-    setForm({
-      email: "demo@codetrack.com",
-      password: "Demo@1234"
-    });
-    setTouched({ email: true, password: true });
-    toast.info("Demo credentials loaded");
   };
 
   return (
@@ -228,19 +188,6 @@ function Login() {
               </div>
             </div>
           )}
-
-          {/* Demo Credentials */}
-          <button
-            type="button"
-            onClick={fillDemoCredentials}
-            className="mb-6 w-full p-3 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-100 rounded-xl hover:border-blue-200 transition-colors group"
-          >
-            <div className="flex items-center justify-center gap-2 text-sm text-gray-600 group-hover:text-gray-800">
-              <Fingerprint className="w-4 h-4 text-blue-500" />
-              <span>Use Demo Credentials</span>
-              <ArrowRight className="w-4 h-4 text-blue-500 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </button>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5 relative">
@@ -375,37 +322,6 @@ function Login() {
               )}
             </Button>
           </form>
-
-          {/* Social Login */}
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200"></div>
-              </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="px-4 bg-white text-gray-400">
-                  Or continue with
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                className="flex items-center justify-center gap-2 p-3 border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200"
-              >
-                <ChromeIcon className="w-5 h-5 text-blue-500" />
-                <span className="text-sm font-medium text-gray-700">Google</span>
-              </button>
-              <button
-                type="button"
-                className="flex items-center justify-center gap-2 p-3 border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200"
-              >
-                <Github className="w-5 h-5 text-gray-700" />
-                <span className="text-sm font-medium text-gray-700">GitHub</span>
-              </button>
-            </div>
-          </div>
 
           {/* Register Link */}
           <div className="mt-6 pt-6 border-t border-gray-100">

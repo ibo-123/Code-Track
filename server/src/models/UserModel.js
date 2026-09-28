@@ -7,10 +7,15 @@ const userSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-   avater : {
-      type : String,
-      default : ""
-   },
+    avatar: {
+      type: String,
+      default: "",
+    },
+    // Legacy typo field kept for existing documents
+    avater: {
+      type: String,
+      default: "",
+    },
     email: {
       type: String,
       required: true,

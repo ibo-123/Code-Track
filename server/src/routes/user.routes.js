@@ -7,7 +7,7 @@ import {
 import upload from "../middlewares/upload.middleware.js";
 
 const router = express.Router();
-router.put("/profile", authMiddleware, updateProfile);
+
 router.get("/profile", authMiddleware, getProfile);
 router.put(
   "/profile",
@@ -15,4 +15,5 @@ router.put(
   upload.single("avatar"),
   updateProfile
 );
+
 export default router;
