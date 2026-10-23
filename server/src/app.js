@@ -7,6 +7,11 @@ import dashboardRoutes from "./routes/dashboard.route.js";
 import settingsRoutes from "./routes/setting.route.js";
 import contestRoutes from "./routes/contets.route.js";
 import analyticsRoutes from "./routes/analytics.route.js";
+import submissionRoutes from "./routes/submission.route.js";
+import goalRoutes from "./routes/goal.route.js";
+import achievementRoutes from "./routes/achievement.route.js";
+import leetcodeRoutes from "./routes/leetcode.route.js";
+import analysisRoutes from "./routes/analysis.route.js";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -46,9 +51,11 @@ const uploadsPath = path.join(__dirname, 'uploads');
 console.log(`[SERVER] Serving static files from: ${uploadsPath}`);
 app.use("/uploads", express.static(uploadsPath));
 
-// Body parsers
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Body parsers — allow slightly above ANALYSIS_MAX_SOURCE_BYTES so the
+// analysis/source controllers can return a precise 413 instead of Express default.
+const JSON_LIMIT = process.env.JSON_BODY_LIMIT || "256kb";
+app.use(express.json({ limit: JSON_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: JSON_LIMIT }));
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -64,6 +71,11 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/codeforces", codeforcesRoutes);
 app.use("/api/contests", contestRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/submissions", submissionRoutes);
+app.use("/api/analyses", analysisRoutes);
+app.use("/api/platforms/leetcode", leetcodeRoutes);
+app.use("/api/goals", goalRoutes);
+app.use("/api/achievements", achievementRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {
@@ -105,6 +117,18 @@ app.use((err, req, res, next) => {
     return res.status(400).json({
       success: false,
       message: err.message
+    });
+  }
+
+  // Express / body-parser payload limits
+  if (
+    err.type === "entity.too.large" ||
+    err.status === 413 ||
+    err.name === "PayloadTooLargeError"
+  ) {
+    return res.status(413).json({
+      success: false,
+      message: "Request entity too large",
     });
   }
   
