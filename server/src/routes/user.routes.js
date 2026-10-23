@@ -4,8 +4,10 @@ import {
   getProfile,
   updateProfile,
   changePassword,
+  syncCodeforces,
 } from "../controller/user.controller.js";
 import upload from "../middlewares/upload.middleware.js";
+import { syncRateLimiter } from "../middlewares/rateLimit.middleware.js";
 
 const router = express.Router();
 
@@ -20,5 +22,8 @@ router.put("/password", authMiddleware, changePassword);
 
 // GET /api/users/me - Alias for profile
 router.get("/me", authMiddleware, getProfile);
+
+// POST /api/users/sync - Sync Codeforces Data (rate limited)
+router.post("/sync", authMiddleware, syncRateLimiter, syncCodeforces);
 
 export default router;

@@ -1,6 +1,7 @@
 import express from "express";
 
 import authMiddleware from "../middlewares/auth.middleware.js";
+import { syncRateLimiter } from "../middlewares/rateLimit.middleware.js";
 
 import {
   connectCodeforces,
@@ -15,6 +16,7 @@ const router = express.Router();
 router.post(
   "/connect",
   authMiddleware,
+  syncRateLimiter,
   connectCodeforces
 );
 

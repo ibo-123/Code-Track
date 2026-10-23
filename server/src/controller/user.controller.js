@@ -1,5 +1,7 @@
 import bcrypt from "bcrypt";
 import User from "../models/UserModel.js";
+import { syncCodeforcesData } from "../services/codeforces.services.js";
+import { upsertLeetCodeUsernameSaved } from "../services/platformConnection.service.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -165,6 +167,18 @@ export const updateProfile = async (req, res) => {
       }
     ).select('-password');
 
+    // LeetCode username is display-only in Phase 1 (not authenticated sync)
+    if (Object.prototype.hasOwnProperty.call(updateData, "leetcodeUsername")) {
+      try {
+        await upsertLeetCodeUsernameSaved(
+          req.user.id,
+          updatedUser.leetcodeUsername || ""
+        );
+      } catch (e) {
+        console.warn("[PROFILE] PlatformConnection LeetCode update skipped:", e.message);
+      }
+    }
+
     console.log('[PROFILE] Profile updated successfully');
 
     // Determine avatar URL from updated user
@@ -243,5 +257,25 @@ export const changePassword = async (req, res) => {
       success: false,
       message: "Server Error"
     });
+  }
+};
+
+export const syncCodeforces = async (req, res) => {
+  try {
+    const result = await syncCodeforcesData(req.user.id, { force: true });
+    if (!result) {
+      return res.status(400).json({
+        success: false,
+        message: "Sync failed. Please ensure Codeforces handle is valid.",
+      });
+    }
+    return res.status(200).json({
+      success: true,
+      message: result.cached ? "Using recent sync" : "Synced successfully",
+      stats: result.stats,
+    });
+  } catch (error) {
+    console.error("Sync Codeforces error:", error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
