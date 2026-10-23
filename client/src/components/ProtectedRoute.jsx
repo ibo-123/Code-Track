@@ -1,16 +1,17 @@
 // components/ProtectedRoute.jsx
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated } = useAuth();
+  const location = useLocation();
 
-  // Redirect to login if there is no authentication token
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return (
+      <Navigate to="/login" replace state={{ from: location }} />
+    );
   }
 
-  // User is authenticated
   return children;
 }
 

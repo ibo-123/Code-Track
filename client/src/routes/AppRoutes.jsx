@@ -8,6 +8,7 @@ import Dashboard from "../pages/Dashboard";
 import Profile from "../pages/Profile";
 import Analytics from "../pages/Analytics";
 import Contests from "../pages/Contests";
+import Submissions from "../pages/Submissions";
 import Home from "../pages/Home";
 
 import DashboardLayout from "../layouts/DashboardLayout";
@@ -97,6 +98,17 @@ function AppRoutes() {
           <ProtectedRoute>
             <DashboardLayout>
               <Contests />
+            </DashboardLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/submissions"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <Submissions />
             </DashboardLayout>
           </ProtectedRoute>
         }

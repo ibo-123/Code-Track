@@ -12,8 +12,8 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
+  FileText,
 } from "lucide-react";
-
 import { Input } from "../ui/input";
 
 const DEFAULT_USER_DATA = {
@@ -31,6 +31,24 @@ const normalizeUserData = (data) => ({
   ...(data || {}),
 });
 
+const formatJoinedDate = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+};
+
+const getInitials = (name = "") => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "U";
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+};
+
 function AccountCard({
   userData: initialUserData = DEFAULT_USER_DATA,
   isEditing = false,
@@ -40,21 +58,16 @@ function AccountCard({
   onAvatarChange,
   isLoading: externalIsLoading = false,
   className = "",
-  editableFields = ["name", "email", "phone", "location", "bio"],
+  editableFields = ["name", "phone", "location", "bio"],
   showJoined = true,
   showBio = true,
-  avatarColor = "from-blue-400 to-purple-400",
-  gradientClass = "from-blue-500 to-purple-500",
-  validationRules = {},
   successMessage = "Account updated successfully!",
   errorMessage = "Failed to update account. Please try again.",
-  cancelButtonText = "Cancel",
-  saveButtonText = "Save Changes",
-  editButtonText = "Edit",
 }) {
-  // State management
   const [formData, setFormData] = useState(() => normalizeUserData(initialUserData));
-  const [displayData, setDisplayData] = useState(() => normalizeUserData(initialUserData));
+  const [displayData, setDisplayData] = useState(() =>
+    normalizeUserData(initialUserData)
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -62,57 +75,47 @@ function AccountCard({
   const [touched, setTouched] = useState({});
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [imgFailed, setImgFailed] = useState(false);
   const fileInputRef = useRef(null);
 
   const loading = externalIsLoading || isLoading;
 
-  // Update data when props change
   useEffect(() => {
-    console.log("[AccountCard] Props updated - isEditing:", isEditing);
     const safeData = normalizeUserData(initialUserData);
     setDisplayData(safeData);
-    
-    // Only reset form when NOT editing
+    setImgFailed(false);
     if (!isEditing) {
-      console.log("[AccountCard] Resetting form data");
       setFormData(safeData);
       setAvatarPreview(null);
       setSelectedFile(null);
     }
   }, [initialUserData, isEditing]);
 
-  const getFieldLabel = (field) => {
-    const labels = {
+  const getFieldLabel = (field) =>
+    ({
       name: "Full Name",
       email: "Email Address",
       phone: "Phone Number",
       location: "Location",
-      joined: "Joined",
+      joined: "Member Since",
       bio: "Bio",
-    };
-    return labels[field] || field;
-  };
+    })[field] || field;
 
   const validateField = (field, value) => {
-    const rules = validationRules[field];
-    if (!rules) return "";
-    const safeValue = String(value ?? "");
-
-    if (rules.required && !safeValue.trim()) {
-      return `${getFieldLabel(field)} is required`;
-    }
-    if (field === "email" && rules.pattern && safeValue && !rules.pattern.test(safeValue)) {
-      return "Please enter a valid email address";
-    }
-    if (field === "phone" && rules.pattern && safeValue && !rules.pattern.test(safeValue)) {
-      return "Please enter a valid phone number";
-    }
+    const safeValue = String(value ?? "").trim();
     if (field === "name") {
-      if (rules.minLength && safeValue.length < rules.minLength) {
-        return `Name must be at least ${rules.minLength} characters`;
+      if (!safeValue) return "Full name is required";
+      if (safeValue.length < 2) return "Name must be at least 2 characters";
+      if (safeValue.length > 50) return "Name must be less than 50 characters";
+    }
+    if (field === "email" && safeValue) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safeValue)) {
+        return "Please enter a valid email address";
       }
-      if (rules.maxLength && safeValue.length > rules.maxLength) {
-        return `Name must be less than ${rules.maxLength} characters`;
+    }
+    if (field === "phone" && safeValue) {
+      if (!/^[+\d][\d\s()-]{6,19}$/.test(safeValue)) {
+        return "Please enter a valid phone number";
       }
     }
     return "";
@@ -120,83 +123,62 @@ function AccountCard({
 
   const validateForm = () => {
     const newErrors = {};
-    let valid = true;
     editableFields.forEach((field) => {
       const error = validateField(field, formData[field]);
-      if (error) {
-        newErrors[field] = error;
-        valid = false;
-      }
+      if (error) newErrors[field] = error;
     });
     setErrors(newErrors);
-    return valid;
+    setTouched(
+      Object.fromEntries(editableFields.map((field) => [field, true]))
+    );
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleEdit = (e) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    console.log("[AccountCard] Edit clicked");
-    
-    const safeData = normalizeUserData(initialUserData);
-    setFormData({ ...safeData });
+    e?.preventDefault?.();
+    setFormData(normalizeUserData(initialUserData));
     setErrors({});
     setTouched({});
     setSaveError("");
     setIsSaved(false);
     setAvatarPreview(null);
     setSelectedFile(null);
-    
-    if (onEdit) {
-      onEdit();
-    }
+    setImgFailed(false);
+    onEdit?.();
   };
 
   const handleCancel = () => {
-    console.log("[AccountCard] Cancel clicked");
-    const safeData = normalizeUserData(initialUserData);
-    setFormData({ ...safeData });
+    setFormData(normalizeUserData(initialUserData));
     setErrors({});
     setTouched({});
     setSaveError("");
     setAvatarPreview(null);
     setSelectedFile(null);
-    if (onCancel) onCancel();
+    setImgFailed(false);
+    onCancel?.();
   };
 
   const handleSave = async () => {
-    console.log("[AccountCard] Save clicked");
-    
-    if (!validateForm()) {
-      console.log("[AccountCard] Validation failed");
-      return;
-    }
-    
+    if (!validateForm()) return;
     if (typeof onSave !== "function") {
       setSaveError("Unable to save changes. Please try again.");
       return;
     }
-    
+
     try {
       setIsLoading(true);
       setSaveError("");
       setIsSaved(false);
-      
-      console.log("[AccountCard] Saving data:", formData);
-      
-      // IMPORTANT: Send both form data AND the selected file
       await onSave(formData, selectedFile);
-      
       setDisplayData({ ...formData });
       setAvatarPreview(null);
       setSelectedFile(null);
       setIsSaved(true);
-      
       setTimeout(() => setIsSaved(false), 3000);
     } catch (error) {
-      console.error("[AccountCard] Save error:", error);
-      setSaveError(error?.response?.data?.message || error?.message || errorMessage);
+      setSaveError(
+        error?.response?.data?.message || error?.message || errorMessage
+      );
     } finally {
       setIsLoading(false);
     }
@@ -208,141 +190,106 @@ function AccountCard({
     setTouched((prev) => ({ ...prev, [name]: true }));
     const error = validateField(name, value);
     setErrors((prev) => {
-      const updated = { ...prev };
-      if (error) updated[name] = error;
-      else delete updated[name];
-      return updated;
+      const next = { ...prev };
+      if (error) next[name] = error;
+      else delete next[name];
+      return next;
     });
     setSaveError("");
-  };
-
-  const handleBlur = (e) => {
-    const { name, value } = e.target;
-    setTouched((prev) => ({ ...prev, [name]: true }));
-    const error = validateField(name, value);
-    setErrors((prev) => {
-      const updated = { ...prev };
-      if (error) updated[name] = error;
-      else delete updated[name];
-      return updated;
-    });
-  };
-
-  const handleAvatarClick = () => {
-    if (!loading) fileInputRef.current?.click();
   };
 
   const handleAvatarChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
-    // Validate file
+
     if (!file.type.startsWith("image/")) {
       setSaveError("Please select a valid image file.");
       e.target.value = "";
       return;
     }
-    
     if (file.size > 5 * 1024 * 1024) {
       setSaveError("Image size must be less than 5 MB.");
       e.target.value = "";
       return;
     }
-    
-    console.log("[AccountCard] Avatar selected:", file.name, file.size, "bytes");
+
     setSaveError("");
-    
-    // CRITICAL FIX: Store the File object locally
     setSelectedFile(file);
-    
-    // Create preview
+    setImgFailed(false);
+
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setAvatarPreview(reader.result);
-    };
+    reader.onloadend = () => setAvatarPreview(reader.result);
     reader.readAsDataURL(file);
-    
-    // Notify parent about avatar selection
-    if (typeof onAvatarChange === "function") {
-      try {
-        await onAvatarChange(file);
-        console.log("[AccountCard] Avatar change notification sent to parent");
-      } catch (error) {
-        console.error("[AccountCard] Avatar change notification failed:", error);
-        setAvatarPreview(null);
-        setSelectedFile(null);
-        setSaveError(error?.message || "Failed to process avatar.");
-      }
+
+    try {
+      await onAvatarChange?.(file);
+    } catch (error) {
+      setAvatarPreview(null);
+      setSelectedFile(null);
+      setSaveError(error?.message || "Failed to process avatar.");
     }
   };
 
-  const getFieldIcon = (field) => {
-    const iconClass = "w-5 h-5 mt-0.5 flex-shrink-0";
-    switch (field) {
-      case "name": return <User className={`${iconClass} text-blue-500`} />;
-      case "email": return <Mail className={`${iconClass} text-purple-500`} />;
-      case "phone": return <Phone className={`${iconClass} text-green-500`} />;
-      case "location": return <MapPin className={`${iconClass} text-red-500`} />;
-      case "joined": return <Calendar className={`${iconClass} text-slate-400`} />;
-      default: return <User className={`${iconClass} text-slate-400`} />;
-    }
+  const fieldMeta = {
+    name: { icon: User, tone: "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10" },
+    email: { icon: Mail, tone: "text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10" },
+    phone: { icon: Phone, tone: "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10" },
+    location: { icon: MapPin, tone: "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10" },
+    joined: { icon: Calendar, tone: "text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800" },
+    bio: { icon: FileText, tone: "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10" },
   };
 
   const displayFields = ["name", "email", "phone", "location"];
-  if (showJoined && displayData.joined) {
-    displayFields.push("joined");
-  }
-  if (showBio && editableFields.includes("bio")) {
-    displayFields.push("bio");
-  }
+  if (showJoined) displayFields.push("joined");
+  if (showBio) displayFields.push("bio");
 
-  // Priority: local preview > server avatar > initial fallback
   const avatarSource = avatarPreview || displayData.avatar || "";
-
-  console.log("[AccountCard] Render - isEditing:", isEditing);
-  console.log("[AccountCard] Avatar source:", avatarSource ? "present" : "empty");
-  console.log("[AccountCard] Selected file:", selectedFile ? selectedFile.name : "none");
+  const showImage = Boolean(avatarSource) && !imgFailed;
 
   return (
-    <div 
-      className={`bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden ${className}`}
-      style={{ position: 'relative', zIndex: 1 }}
+    <div
+      className={`bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden ${className}`}
     >
-      {/* Header */}
-      <div className={`relative h-24 bg-gradient-to-r ${gradientClass}`}>
+      {/* Banner */}
+      <div className="relative h-28 bg-gradient-to-br from-violet-600 via-indigo-600 to-blue-600">
+        <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_20%_20%,white,transparent_40%),radial-gradient(circle_at_80%_0%,#93c5fd,transparent_35%)]" />
         <div className="absolute -bottom-12 left-6">
           <div className="relative">
-            <div className="w-24 h-24 rounded-full border-4 border-white bg-white overflow-hidden shadow-lg">
-              {avatarSource ? (
-                <img 
-                  src={avatarSource} 
-                  alt={displayData.name || "User avatar"} 
+            <div className="w-24 h-24 rounded-full border-4 border-white dark:border-slate-900 bg-slate-100 dark:bg-slate-800 overflow-hidden shadow-lg ring-1 ring-black/5">
+              {showImage ? (
+                <img
+                  src={avatarSource}
+                  alt=""
                   className="w-full h-full object-cover"
+                  onError={() => setImgFailed(true)}
                 />
               ) : (
-                <div className={`w-full h-full bg-gradient-to-br ${avatarColor} flex items-center justify-center`}>
-                  <span className="text-3xl font-bold text-white">
-                    {(displayData.name || "U").charAt(0).toUpperCase()}
+                <div className="w-full h-full bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center">
+                  <span className="text-2xl font-bold text-white tracking-wide">
+                    {getInitials(displayData.name)}
                   </span>
                 </div>
               )}
             </div>
+
             {isEditing && (
               <>
                 <button
                   type="button"
-                  onClick={handleAvatarClick}
+                  onClick={() => fileInputRef.current?.click()}
                   disabled={loading}
-                  className="absolute bottom-0 right-0 p-1.5 bg-blue-500 rounded-full border-2 border-white hover:bg-blue-600 disabled:opacity-50 transition-colors"
+                  className="absolute bottom-1 right-1 p-2 bg-indigo-600 hover:bg-indigo-500 rounded-full border-2 border-white dark:border-slate-900 shadow-md disabled:opacity-50 transition-colors"
+                  title="Change photo"
+                  aria-label="Change profile photo"
                 >
                   <Camera className="w-3.5 h-3.5 text-white" />
                 </button>
-                <input 
-                  ref={fileInputRef} 
-                  type="file" 
-                  accept="image/jpeg,image/jpg,image/png,image/webp,image/gif" 
-                  onChange={handleAvatarChange} 
-                  className="hidden" 
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                  onChange={handleAvatarChange}
+                  className="hidden"
                 />
               </>
             )}
@@ -350,89 +297,140 @@ function AccountCard({
         </div>
       </div>
 
-      {/* Content */}
-      <div className="pt-14 px-6 pb-6">
-        {/* Title */}
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <h3 className="text-xl font-semibold text-slate-900">Account Information</h3>
-            <p className="text-sm text-slate-500">
-              {isEditing ? "Edit your personal details" : "Manage your personal details"}
+      <div className="pt-16 px-6 pb-6">
+        <div className="flex items-start justify-between gap-4 mb-6">
+          <div className="min-w-0">
+            <h3 className="text-xl font-semibold text-slate-900 dark:text-white">
+              Account Information
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              {isEditing
+                ? "Update your personal details below"
+                : "Manage your personal details"}
             </p>
+            {displayData.name && (
+              <p className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
+                {displayData.name}
+              </p>
+            )}
           </div>
+
           {!isEditing && (
             <button
               type="button"
               onClick={handleEdit}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium border border-slate-200 rounded-md hover:bg-blue-50 hover:border-blue-200 transition-colors"
-              style={{ 
-                cursor: 'pointer', 
-                position: 'relative', 
-                zIndex: 10,
-                background: 'white',
-                pointerEvents: 'auto'
-              }}
+              className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg
+                bg-slate-900 text-white hover:bg-slate-800
+                dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100
+                shadow-sm transition-colors flex-shrink-0"
             >
               <Edit2 className="w-4 h-4" />
-              {editButtonText}
+              Edit
             </button>
           )}
         </div>
 
-        {/* Success/Error Messages */}
         {isSaved && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
-            <CheckCircle className="w-4 h-4 text-green-600" />
-            <p className="text-sm text-green-600 font-medium">{successMessage}</p>
+          <div className="mb-4 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <p className="text-sm text-emerald-700 dark:text-emerald-300 font-medium">
+              {successMessage}
+            </p>
           </div>
         )}
         {saveError && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-red-600" />
-            <p className="text-sm text-red-600 font-medium">{saveError}</p>
+          <div className="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
+            <p className="text-sm text-red-700 dark:text-red-300 font-medium">
+              {saveError}
+            </p>
           </div>
         )}
 
-        {/* Fields */}
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {displayFields.map((field) => {
-            // 'joined' is read-only
+            const meta = fieldMeta[field] || fieldMeta.name;
+            const Icon = meta.icon;
             const isJoined = field === "joined";
-            const editable = editableFields.includes(field) && isEditing && !isJoined;
-            const value = editable ? formData[field] ?? "" : displayData[field] ?? "";
-            const hasError = Boolean(errors[field]) && Boolean(touched[field]);
+            const isEmail = field === "email";
+            const editable =
+              editableFields.includes(field) && isEditing && !isJoined && !isEmail;
+            const rawValue = editable
+              ? formData[field] ?? ""
+              : displayData[field] ?? "";
+            const value = isJoined ? formatJoinedDate(rawValue) : rawValue;
+            const hasError = Boolean(errors[field] && touched[field]);
+            const spanFull = field === "bio";
 
             return (
-              <div key={field} className="flex items-start gap-3 p-3 rounded-lg hover:bg-slate-50">
-                {getFieldIcon(field)}
+              <div
+                key={field}
+                className={`flex items-start gap-3 p-3.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40 ${
+                  spanFull ? "sm:col-span-2" : ""
+                }`}
+              >
+                <div
+                  className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${meta.tone}`}
+                >
+                  <Icon className="w-4 h-4" />
+                </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                     {getFieldLabel(field)}
-                    {editable && <span className="text-red-500 ml-1">*</span>}
+                    {editable && <span className="text-red-500 ml-0.5">*</span>}
                   </p>
+
                   {editable ? (
-                    <>
-                      <Input
-                        type={field === "email" ? "email" : field === "phone" ? "tel" : "text"}
+                    field === "bio" ? (
+                      <textarea
                         name={field}
                         value={value}
                         onChange={handleChange}
-                        onBlur={handleBlur}
                         disabled={loading}
-                        className={`mt-1 ${hasError ? "border-red-300" : ""}`}
+                        rows={3}
+                        placeholder="Tell us a bit about yourself"
+                        className={`mt-1.5 w-full rounded-lg border bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500/40 ${
+                          hasError
+                            ? "border-red-300 dark:border-red-500/50"
+                            : "border-slate-200 dark:border-slate-700"
+                        }`}
+                      />
+                    ) : (
+                      <Input
+                        type={field === "phone" ? "tel" : "text"}
+                        name={field}
+                        value={value}
+                        onChange={handleChange}
+                        disabled={loading}
+                        className={`mt-1.5 h-10 bg-white dark:bg-slate-900 ${
+                          hasError ? "border-red-300 dark:border-red-500/50" : ""
+                        }`}
                         placeholder={`Enter your ${getFieldLabel(field).toLowerCase()}`}
                       />
-                      {hasError && (
-                        <div className="mt-1 flex items-center gap-1 text-red-600 text-xs">
-                          <AlertCircle className="w-3.5 h-3.5" />
-                          <span>{errors[field]}</span>
-                        </div>
-                      )}
-                    </>
+                    )
                   ) : (
-                    <p className="text-sm font-medium text-slate-700 mt-1 break-words">
+                    <p
+                      className={`mt-1 text-sm font-medium break-words ${
+                        value
+                          ? "text-slate-800 dark:text-slate-100"
+                          : "text-slate-400 dark:text-slate-500 italic"
+                      }`}
+                    >
                       {value || "Not provided"}
                     </p>
+                  )}
+
+                  {isEmail && isEditing && (
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      Email can’t be changed here for security.
+                    </p>
+                  )}
+
+                  {hasError && (
+                    <div className="mt-1.5 flex items-center gap-1 text-red-600 dark:text-red-400 text-xs">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      <span>{errors[field]}</span>
+                    </div>
                   )}
                 </div>
               </div>
@@ -440,33 +438,32 @@ function AccountCard({
           })}
         </div>
 
-        {/* Actions */}
         {isEditing && (
-          <div className="mt-6 pt-4 border-t border-slate-200 flex items-center gap-3 justify-end">
+          <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={handleCancel}
               disabled={loading}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium border border-slate-200 rounded-md hover:bg-slate-50 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
             >
               <X className="w-4 h-4" />
-              {cancelButtonText}
+              Cancel
             </button>
             <button
               type="button"
               onClick={handleSave}
               disabled={loading}
-              className={`inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-md bg-gradient-to-r ${gradientClass} hover:opacity-90 disabled:opacity-70 transition-opacity`}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white bg-gradient-to-r from-violet-600 to-blue-600 hover:opacity-95 shadow-sm disabled:opacity-60 transition-opacity"
             >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Saving...
+                  Saving…
                 </>
               ) : (
                 <>
                   <Save className="w-4 h-4" />
-                  {saveButtonText}
+                  Save Changes
                 </>
               )}
             </button>

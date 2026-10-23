@@ -1,11 +1,10 @@
-// pages/Login.jsx
-import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { 
-  LogIn, 
-  Mail, 
-  Lock, 
-  Eye, 
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
+import {
+  LogIn,
+  Mail,
+  Lock,
+  Eye,
   EyeOff,
   AlertCircle,
   CheckCircle,
@@ -13,52 +12,34 @@ import {
   Code2,
   Shield,
   Fingerprint,
-
+  Loader2,
+  BarChart3,
+  Trophy,
+  Flame,
 } from "lucide-react";
-
 import { loginUser } from "../services/authService";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import ThemeToggle from "../components/ui/ThemeToggle";
 
-// Custom Chrome icon as a fallback
-const ChromeIcon = ({ className }) => (
-  <svg 
-    className={className} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round"
-  >
-    <circle cx="12" cy="12" r="10"/>
-    <circle cx="12" cy="12" r="4"/>
-    <line x1="21.17" y1="8" x2="12" y2="8"/>
-    <line x1="3.95" y1="6.06" x2="8.54" y2="14"/>
-    <line x1="10.88" y1="21.94" x2="15.46" y2="14"/>
-  </svg>
-);
-const Github = ({ className }) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    fill="currentColor"
-    aria-hidden="true"
-  >
-    <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.49.5.092.682-.217.682-.483 0-.237-.009-.866-.013-1.7-2.782.604-3.369-1.342-3.369-1.342-.455-1.157-1.11-1.465-1.11-1.465-.908-.62.069-.608.069-.608 1.004.071 1.532 1.03 1.532 1.03.892 1.529 2.341 1.087 2.91.831.091-.646.349-1.087.635-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0 1 12 6.844a9.56 9.56 0 0 1 2.504.337c1.909-1.294 2.748-1.025 2.748-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.744 0 .268.18.58.688.482A10.002 10.002 0 0 0 22 12C22 6.477 17.523 2 12 2Z" />
-  </svg>
-);
+const DEMO_EMAIL = import.meta.env.VITE_DEMO_EMAIL || "";
+const DEMO_PASSWORD = import.meta.env.VITE_DEMO_PASSWORD || "";
+const HAS_DEMO = Boolean(DEMO_EMAIL && DEMO_PASSWORD);
+
+const REMEMBER_EMAIL_KEY = "rememberedEmail";
+const LAST_NAME_KEY = "lastLoginName";
+
 function Login() {
   const navigate = useNavigate();
-  const { saveToken } = useAuth();
+  const location = useLocation();
+  const { login, saveToken, isAuthenticated, loading: authLoading } = useAuth();
 
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-  });
+  const redirectTo = location.state?.from?.pathname || "/dashboard";
+  const flashMessage = location.state?.message || "";
 
+  const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -66,78 +47,82 @@ function Login() {
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [touched, setTouched] = useState({});
+  const [lastName, setLastName] = useState("");
 
-  // Load saved email from localStorage
+  // Restore remembered email + greeting name
   useEffect(() => {
-    const savedEmail = localStorage.getItem("rememberedEmail");
+    const savedEmail = localStorage.getItem(REMEMBER_EMAIL_KEY);
+    const savedName = localStorage.getItem(LAST_NAME_KEY);
     if (savedEmail) {
-      setForm(prev => ({ ...prev, email: savedEmail }));
+      setForm((prev) => ({ ...prev, email: savedEmail }));
       setRememberMe(true);
     }
-  }, []);
+    if (savedName) setLastName(savedName);
+    if (flashMessage) {
+      toast.info(flashMessage);
+    }
+  }, [flashMessage]);
+
+  // Already signed in → leave login
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      navigate(redirectTo, { replace: true });
+    }
+  }, [authLoading, isAuthenticated, navigate, redirectTo]);
+
+  const greeting = useMemo(() => {
+    if (lastName) return `Welcome back, ${lastName}`;
+    return "Welcome back";
+  }, [lastName]);
+
+  const emailValid = useMemo(() => {
+    if (!form.email) return false;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
+  }, [form.email]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm({
-      ...form,
-      [name]: value,
-    });
+    setForm((prev) => ({ ...prev, [name]: value }));
     setError("");
-    
     if (name === "email") setEmailError("");
     if (name === "password") setPasswordError("");
   };
 
   const handleBlur = (e) => {
-    setTouched({
-      ...touched,
-      [e.target.name]: true,
-    });
-    
-    if (e.target.name === "email" && e.target.value) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(e.target.value)) {
+    const { name, value } = e.target;
+    setTouched((prev) => ({ ...prev, [name]: true }));
+
+    if (name === "email" && value) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
         setEmailError("Please enter a valid email address");
       }
     }
   };
 
   const validate = () => {
-    let isValid = true;
     const errors = {};
-
     if (!form.email) {
       errors.email = "Email is required";
-      isValid = false;
-    } else {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(form.email)) {
-        errors.email = "Please enter a valid email address";
-        isValid = false;
-      }
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      errors.email = "Please enter a valid email address";
     }
-
     if (!form.password) {
       errors.password = "Password is required";
-      isValid = false;
     } else if (form.password.length < 8) {
       errors.password = "Password must be at least 8 characters";
-      isValid = false;
     }
-
-    return { isValid, errors };
+    return {
+      isValid: Object.keys(errors).length === 0,
+      errors,
+    };
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // prevent duplicate submissions when a request is in-flight
     if (loading) return;
 
     setTouched({ email: true, password: true });
-    
     const { isValid, errors } = validate();
-    
     if (!isValid) {
       setEmailError(errors.email || "");
       setPasswordError(errors.password || "");
@@ -149,33 +134,53 @@ function Login() {
     setError("");
 
     try {
-      const data = await loginUser(form);
-      saveToken(data.token);
+      const data = await loginUser({
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+      });
 
-      if (rememberMe) {
-        localStorage.setItem("rememberedEmail", form.email);
+      if (typeof login === "function") {
+        login(data.token, data.user);
       } else {
-        localStorage.removeItem("rememberedEmail");
+        saveToken(data.token);
+        if (data.user) {
+          localStorage.setItem("user", JSON.stringify(data.user));
+        }
       }
 
-      toast.success("Welcome back! Redirecting to dashboard...");
-      
-      setTimeout(() => {
-        navigate("/dashboard");
-      }, 500);
+      if (rememberMe) {
+        localStorage.setItem(REMEMBER_EMAIL_KEY, form.email.trim().toLowerCase());
+      } else {
+        localStorage.removeItem(REMEMBER_EMAIL_KEY);
+      }
 
-    } catch (error) {
-      console.error("Login error:", error);
+      const name = data.user?.name;
+      if (name) localStorage.setItem(LAST_NAME_KEY, name);
 
+      toast.success(
+        name ? `Welcome back, ${name.split(" ")[0]}!` : "Welcome back!"
+      );
+      navigate(redirectTo, { replace: true });
+    } catch (err) {
+      const status = err.response?.status;
       const message =
-        error.response?.data?.message ||
-        (error.response?.status === 500
+        err.response?.data?.message ||
+        (status === 500
           ? "Server error. Please try again later."
           : "Login failed. Please try again.");
 
+      // Unverified → send to OTP with email prefilled
+      if (status === 403 && /verify/i.test(message)) {
+        toast.info("Verify your email to continue");
+        navigate("/verify-email", {
+          state: { email: form.email.trim().toLowerCase() },
+          replace: true,
+        });
+        return;
+      }
+
       setError(message);
       toast.error(message);
-
       setForm((prev) => ({ ...prev, password: "" }));
       setPasswordError("Invalid credentials");
     } finally {
@@ -184,76 +189,154 @@ function Login() {
   };
 
   const fillDemoCredentials = () => {
-    setForm({
-      email: "demo@codetrack.com",
-      password: "Demo@1234"
-    });
+    if (!HAS_DEMO) {
+      toast.message("No demo account configured", {
+        description: "Create an account to start tracking contests and rating.",
+      });
+      return;
+    }
+    setForm({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
     setTouched({ email: true, password: true });
-    toast.info("Demo credentials loaded");
+    setEmailError("");
+    setPasswordError("");
+    setError("");
+    toast.info("Demo credentials loaded — hit Sign in");
   };
 
+  const handleForgotPassword = (e) => {
+    e.preventDefault();
+    toast.message("Password reset coming soon", {
+      description:
+        "For now, register a new account or contact support if you're locked out.",
+      action: {
+        label: "Register",
+        onClick: () => navigate("/register"),
+      },
+    });
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--accent)]" />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 px-4 py-8">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 border border-gray-100 relative overflow-hidden">
-          {/* Decorative Elements */}
-          <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl"></div>
-          <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl"></div>
-          
+    <div className="min-h-screen relative flex items-center justify-center px-4 py-10 overflow-hidden bg-slate-50 dark:bg-slate-950">
+      {/* Atmosphere */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.4] dark:opacity-[0.25]"
+        style={{
+          backgroundImage: `
+            linear-gradient(to right, rgb(148 163 184 / 0.15) 1px, transparent 1px),
+            linear-gradient(to bottom, rgb(148 163 184 / 0.15) 1px, transparent 1px)
+          `,
+          backgroundSize: "48px 48px",
+        }}
+      />
+      <div
+        className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 w-[640px] h-[320px] rounded-full blur-3xl opacity-40 dark:opacity-30"
+        style={{
+          background: `radial-gradient(ellipse, rgb(var(--accent-rgb) / 0.35), transparent 70%)`,
+        }}
+      />
+
+      {/* Top bar */}
+      <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100 hover:opacity-80 transition-opacity"
+        >
+          <span
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-white"
+            style={{ background: "var(--accent)" }}
+          >
+            <Code2 className="w-4 h-4" />
+          </span>
+          <span className="tracking-tight">
+            Code<span style={{ color: "var(--accent)" }}>Track</span>
+          </span>
+        </Link>
+        <ThemeToggle variant="icon" />
+      </div>
+
+      <div className="relative w-full max-w-md z-10">
+        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl shadow-xl shadow-slate-900/5 dark:shadow-black/40 p-8">
           {/* Header */}
-          <div className="text-center mb-8 relative">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 mb-4 shadow-lg relative">
-              <Code2 className="w-10 h-10 text-white" />
-              <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-green-500 border-2 border-white flex items-center justify-center">
-                <LogIn className="w-4 h-4 text-white" />
-              </div>
+          <div className="text-center mb-7">
+            <div
+              className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-lg"
+              style={{
+                background: `linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 70%, #0f172a))`,
+                boxShadow: `0 12px 28px rgb(var(--accent-rgb) / 0.35)`,
+              }}
+            >
+              <LogIn className="w-7 h-7" />
             </div>
-            
-            <h1 className="text-3xl font-bold text-gray-900">
-              Welcome Back
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+              {greeting}
             </h1>
-            
-            <p className="text-sm text-gray-500 mt-2">
-              Sign in to continue tracking your progress
+            <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
+              Sign in to track rating, contests, and streaks
             </p>
           </div>
 
-          {/* Error Message */}
+          {/* Error */}
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <div className="mb-5 flex gap-3 rounded-xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 p-3.5">
+              <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm text-red-600 font-medium">Login Failed</p>
-                <p className="text-xs text-red-500 mt-0.5">{error}</p>
+                <p className="text-sm font-medium text-red-700 dark:text-red-300">
+                  Login failed
+                </p>
+                <p className="text-xs text-red-600/90 dark:text-red-400 mt-0.5">
+                  {error}
+                </p>
               </div>
             </div>
           )}
 
-          {/* Demo Credentials */}
-          <button
-            type="button"
-            onClick={fillDemoCredentials}
-            className="mb-6 w-full p-3 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-100 rounded-xl hover:border-blue-200 transition-colors group"
-          >
-            <div className="flex items-center justify-center gap-2 text-sm text-gray-600 group-hover:text-gray-800">
-              <Fingerprint className="w-4 h-4 text-blue-500" />
-              <span>Use Demo Credentials</span>
-              <ArrowRight className="w-4 h-4 text-blue-500 group-hover:translate-x-1 transition-transform" />
+          {/* Demo — only when env is set */}
+          {HAS_DEMO ? (
+            <button
+              type="button"
+              onClick={fillDemoCredentials}
+              disabled={loading}
+              className="mb-5 w-full flex items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3 py-2.5 text-sm text-slate-600 dark:text-slate-300 hover:border-[var(--accent)]/40 hover:text-slate-900 dark:hover:text-white transition-colors disabled:opacity-50"
+            >
+              <Fingerprint className="w-4 h-4" style={{ color: "var(--accent)" }} />
+              <span>Use demo credentials</span>
+              <ArrowRight className="w-4 h-4 opacity-60" />
+            </button>
+          ) : (
+            <div className="mb-5 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 px-3 py-2.5 text-center text-xs text-slate-500 dark:text-slate-400">
+              New here?{" "}
+              <Link
+                to="/register"
+                className="font-medium hover:underline"
+                style={{ color: "var(--accent)" }}
+              >
+                Create an account
+              </Link>{" "}
+              to sync Codeforces
             </div>
-          </button>
+          )}
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-5 relative">
-            {/* Email Field */}
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+            {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Email Address
+              <label
+                htmlFor="login-email"
+                className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
+                Email address
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
-                </div>
+                <Mail className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400" />
                 <Input
+                  id="login-email"
                   type="email"
                   name="email"
                   autoComplete="email"
@@ -262,47 +345,49 @@ function Login() {
                   onBlur={handleBlur}
                   placeholder="you@example.com"
                   disabled={loading}
-                  className={`pl-10 h-12 ${
-                    touched.email && emailError 
-                      ? "border-red-300 focus:border-red-500 focus:ring-red-200" 
-                      : touched.email && form.email && !emailError
-                        ? "border-green-300 focus:border-green-500 focus:ring-green-200"
+                  autoFocus
+                  className={`pl-10 h-11 bg-white dark:bg-slate-950/50 border-slate-200 dark:border-slate-700 ${
+                    touched.email && emailError
+                      ? "border-red-400 focus-visible:ring-red-400/30"
+                      : touched.email && emailValid
+                        ? "border-emerald-400 focus-visible:ring-emerald-400/30"
                         : ""
                   }`}
-                  autoFocus
                 />
-                {touched.email && form.email && !emailError && (
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                  </div>
+                {touched.email && emailValid && !emailError && (
+                  <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-emerald-500" />
                 )}
               </div>
               {touched.email && emailError && (
-                <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
+                <p className="mt-1 flex items-center gap-1 text-xs text-red-500">
                   <AlertCircle className="w-3 h-3" />
                   {emailError}
                 </p>
               )}
             </div>
 
-            {/* Password Field */}
+            {/* Password */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-sm font-medium text-gray-700">
+              <div className="mb-1.5 flex items-center justify-between">
+                <label
+                  htmlFor="login-password"
+                  className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
                   Password
                 </label>
-                <Link
-                  to="/forgot-password"
-                  className="text-xs text-blue-600 hover:text-blue-700 hover:underline font-medium"
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className="text-xs font-medium hover:underline"
+                  style={{ color: "var(--accent)" }}
                 >
                   Forgot password?
-                </Link>
+                </button>
               </div>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
-                </div>
+                <Lock className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400" />
                 <Input
+                  id="login-password"
                   type={showPassword ? "text" : "password"}
                   name="password"
                   value={form.password}
@@ -311,123 +396,119 @@ function Login() {
                   placeholder="Enter your password"
                   disabled={loading}
                   autoComplete="current-password"
-                  className={`pl-10 pr-12 h-12 ${
-                    touched.password && passwordError 
-                      ? "border-red-300 focus:border-red-500 focus:ring-red-200" 
-                      : touched.password && form.password && !passwordError
-                        ? "border-green-300 focus:border-green-500 focus:ring-green-200"
-                        : ""
+                  className={`pl-10 pr-11 h-11 bg-white dark:bg-slate-950/50 border-slate-200 dark:border-slate-700 ${
+                    touched.password && passwordError
+                      ? "border-red-400 focus-visible:ring-red-400/30"
+                      : ""
                   }`}
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center hover:text-gray-600 transition-colors"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  tabIndex={-1}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400" />
+                    <EyeOff className="h-4.5 w-4.5" />
                   ) : (
-                    <Eye className="h-5 w-5 text-gray-400" />
+                    <Eye className="h-4.5 w-4.5" />
                   )}
                 </button>
               </div>
               {touched.password && passwordError && (
-                <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
+                <p className="mt-1 flex items-center gap-1 text-xs text-red-500">
                   <AlertCircle className="w-3 h-3" />
                   {passwordError}
                 </p>
               )}
             </div>
 
-            {/* Remember Me */}
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer">
+            {/* Remember */}
+            <div className="flex items-center justify-between pt-0.5">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 accent-[var(--accent)]"
                 />
-                <span className="text-sm text-gray-600">Remember me</span>
+                <span className="text-sm text-slate-600 dark:text-slate-400">
+                  Remember me
+                </span>
               </label>
-              <div className="flex items-center gap-1">
-                <Shield className="w-3 h-3 text-gray-400" />
-                <span className="text-xs text-gray-400">Secure</span>
-              </div>
+              <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
+                <Shield className="w-3 h-3" />
+                JWT secured
+              </span>
             </div>
 
-            {/* Submit Button */}
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed group"
+              className="w-full h-11 rounded-xl font-semibold text-white shadow-md disabled:opacity-50"
+              style={{
+                background: "var(--accent)",
+                boxShadow: `0 8px 20px rgb(var(--accent-rgb) / 0.35)`,
+              }}
             >
               {loading ? (
-                <span className="flex items-center gap-2">
-                  <span className="animate-spin">⏳</span>
-                  Signing in...
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Signing in…
                 </span>
               ) : (
-                <span className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-2">
                   Sign in
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="w-4 h-4" />
                 </span>
               )}
             </Button>
           </form>
 
-          {/* Social Login */}
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200"></div>
-              </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="px-4 bg-white text-gray-400">
-                  Or continue with
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                className="flex items-center justify-center gap-2 p-3 border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200"
-              >
-                <ChromeIcon className="w-5 h-5 text-blue-500" />
-                <span className="text-sm font-medium text-gray-700">Google</span>
-              </button>
-              <button
-                type="button"
-                className="flex items-center justify-center gap-2 p-3 border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200"
-              >
-                <Github className="w-5 h-5 text-gray-700" />
-                <span className="text-sm font-medium text-gray-700">GitHub</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Register Link */}
-          <div className="mt-6 pt-6 border-t border-gray-100">
-            <p className="text-sm text-gray-500 text-center">
-              Don't have an account?{" "}
-              <Link
-                to="/register"
-                className="font-medium text-blue-600 hover:text-blue-700 hover:underline transition-colors"
-              >
-                Create one now
-              </Link>
+          {/* After login — what you get (replaces dead social buttons) */}
+          <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800">
+            <p className="mb-3 text-center text-[11px] uppercase tracking-wider text-slate-400">
+              After you sign in
             </p>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { icon: BarChart3, label: "Analytics" },
+                { icon: Trophy, label: "Contests" },
+                { icon: Flame, label: "Streaks" },
+              ].map(({ icon: Icon, label }) => (
+                <div
+                  key={label}
+                  className="flex flex-col items-center gap-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 px-2 py-2.5 text-center"
+                >
+                  <Icon
+                    className="w-4 h-4"
+                    style={{ color: "var(--accent)" }}
+                  />
+                  <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                    {label}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Footer */}
-        <div className="mt-6 text-center">
-          <p className="text-xs text-gray-400 flex items-center justify-center gap-2">
-            <Shield className="w-3 h-3" />
-            Your credentials are encrypted and secure
+          <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
+            Don&apos;t have an account?{" "}
+            <Link
+              to="/register"
+              className="font-semibold hover:underline"
+              style={{ color: "var(--accent)" }}
+            >
+              Create one
+            </Link>
           </p>
         </div>
+
+        <p className="mt-5 flex items-center justify-center gap-1.5 text-xs text-slate-400">
+          <Shield className="w-3 h-3" />
+          Credentials stay on your device &amp; our API — never shared
+        </p>
       </div>
     </div>
   );

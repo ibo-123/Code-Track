@@ -42,7 +42,10 @@ api.interceptors.response.use(
       console.log("[API] Unauthorized - clearing session");
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      window.location.href = "/login";
+      // Avoid redirect loop if already on auth pages
+      if (!window.location.pathname.match(/^\/(login|register|verify)/)) {
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(error);
   }

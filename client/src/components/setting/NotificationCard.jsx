@@ -1,351 +1,354 @@
-import { useState, useEffect } from "react";
-import { 
-  Bell, 
-  Mail, 
-  MessageSquare, 
-  Smartphone,
-  Calendar,
-  Shield,
+import { useEffect, useMemo, useState } from "react";
+import {
+  Bell,
+  Mail,
+  Trophy,
   Check,
   Settings2,
   Volume2,
-  VolumeX,
   BellOff,
   BellRing,
   Loader2,
-  AlertCircle,
   Clock,
-  Globe,
-  Eye,
-  EyeOff
+  Search,
+  X,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
 import { toast } from "sonner";
 
-// Default notification groups
-const defaultGroups = [
+const STORAGE_KEY = "codetrack-notification-prefs";
+
+const GROUPS = [
   {
-    title: "Communication",
+    title: "Channels",
     icon: Mail,
     items: [
-      { key: "email", label: "Email Notifications", description: "Receive updates via email" },
-      { key: "push", label: "Push Notifications", description: "Get real-time alerts" },
-      { key: "sms", label: "SMS Alerts", description: "Critical updates via text" },
-    ]
+      {
+        key: "email",
+        label: "Email Notifications",
+        description: "Digest of contests and progress",
+      },
+      {
+        key: "push",
+        label: "In-app Alerts",
+        description: "Bell notifications in the dashboard",
+      },
+      {
+        key: "sound",
+        label: "Sound Alerts",
+        description: "Play a sound for important events",
+      },
+    ],
   },
   {
-    title: "Preferences",
+    title: "Competitive Programming",
+    icon: Trophy,
+    items: [
+      {
+        key: "contests",
+        label: "Upcoming Contests",
+        description: "Reminders before Codeforces contests start",
+      },
+      {
+        key: "rating",
+        label: "Rating Changes",
+        description: "Notify when your rating updates after a contest",
+      },
+      {
+        key: "streak",
+        label: "Streak Reminders",
+        description: "Nudge you to keep your solving streak",
+      },
+    ],
+  },
+  {
+    title: "Account",
     icon: Settings2,
     items: [
-      { key: "marketing", label: "Marketing Emails", description: "News and promotions" },
-      { key: "security", label: "Security Alerts", description: "Login and security updates" },
-      { key: "updates", label: "Product Updates", description: "New features and improvements" },
-    ]
+      {
+        key: "security",
+        label: "Security Alerts",
+        description: "Login and password change notices",
+      },
+      {
+        key: "marketing",
+        label: "Product Updates",
+        description: "New CodeTrack features and tips",
+      },
+    ],
   },
-  {
-    title: "Reminders",
-    icon: Calendar,
-    items: [
-      { key: "reminders", label: "Reminders", description: "Task and event reminders" },
-      { key: "sound", label: "Sound Alerts", description: "Play sound for notifications" },
-    ]
-  }
 ];
 
-function NotificationCard({
-  initialPreferences = {
-    email: true,
-    push: true,
-    sms: false,
-    marketing: false,
-    security: true,
-    updates: true,
-    reminders: true,
-    sound: true,
-  },
-  onSave,
-  onToggle,
-  onTestNotification,
-  notificationGroups = defaultGroups,
-  showStats = true,
-  showActions = true,
-  showToast = true,
-  title = "Notifications",
-  subtitle = "Control how you receive updates",
-  className = "",
-  successMessage = "Notification preferences updated",
-  isLoading: externalIsLoading = false,
-  isSaving: externalIsSaving = false
-}) {
-  const [preferences, setPreferences] = useState(initialPreferences);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isConfigured, setIsConfigured] = useState(false);
-  const [activeTab, setActiveTab] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
+const DEFAULT_PREFS = {
+  email: true,
+  push: true,
+  sound: false,
+  contests: true,
+  rating: true,
+  streak: true,
+  security: true,
+  marketing: false,
+};
+
+const readPrefs = () => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? { ...DEFAULT_PREFS, ...JSON.parse(raw) } : { ...DEFAULT_PREFS };
+  } catch {
+    return { ...DEFAULT_PREFS };
+  }
+};
+
+function NotificationCard({ className = "" }) {
+  const [preferences, setPreferences] = useState(readPrefs);
+  const [activeTab, setActiveTab] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [lastSaved, setLastSaved] = useState(() => new Date());
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const loading = externalIsLoading || isLoading;
-  const saving = externalIsSaving || isLoading;
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
+  }, [preferences]);
 
-  // Get all notification keys
   const allKeys = Object.keys(preferences);
-  
-  // Count active and inactive
   const activeCount = Object.values(preferences).filter(Boolean).length;
   const inactiveCount = allKeys.length - activeCount;
 
-  // Get filtered items based on tab and search
-  const getFilteredItems = () => {
-    let items = [];
-    
-    notificationGroups.forEach(group => {
-      group.items.forEach(item => {
-        if (preferences[item.key] !== undefined) {
-          items.push({ group, item });
-        }
+  const filtered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return GROUPS.map((group) => {
+      const items = group.items.filter((item) => {
+        if (preferences[item.key] === undefined) return false;
+        if (activeTab === "active" && !preferences[item.key]) return false;
+        if (activeTab === "inactive" && preferences[item.key]) return false;
+        if (!q) return true;
+        return (
+          item.label.toLowerCase().includes(q) ||
+          item.description.toLowerCase().includes(q) ||
+          group.title.toLowerCase().includes(q)
+        );
       });
-    });
+      return { ...group, items };
+    }).filter((g) => g.items.length > 0);
+  }, [preferences, activeTab, searchQuery]);
 
-    // Filter by tab
-    if (activeTab === 'active') {
-      items = items.filter(({ item }) => preferences[item.key]);
-    } else if (activeTab === 'inactive') {
-      items = items.filter(({ item }) => !preferences[item.key]);
-    }
-
-    // Filter by search
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      items = items.filter(({ item, group }) => 
-        item.label.toLowerCase().includes(query) ||
-        item.description.toLowerCase().includes(query) ||
-        group.title.toLowerCase().includes(query)
-      );
-    }
-
-    return items;
-  };
-
-  const handleToggle = (key) => {
-    const newValue = !preferences[key];
-    const newPreferences = { ...preferences, [key]: newValue };
-    
-    setPreferences(newPreferences);
-    setIsConfigured(true);
-    
-    onToggle?.(key, newValue);
-    
-    // Clear configured state after 3 seconds
-    setTimeout(() => setIsConfigured(false), 3000);
+  const updatePref = (key, value) => {
+    setPreferences((prev) => ({ ...prev, [key]: value }));
+    setDirty(true);
   };
 
   const handleSave = async () => {
-    if (onSave) {
-      setIsLoading(true);
-      try {
-        await onSave(preferences);
-        if (showToast) {
-          toast.success(successMessage);
-        }
-      } catch (error) {
-        toast.error("Failed to save preferences");
-      } finally {
-        setIsLoading(false);
-      }
+    setSaving(true);
+    try {
+      await new Promise((r) => setTimeout(r, 350));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
+      setLastSaved(new Date());
+      setDirty(false);
+      toast.success("Notification preferences saved");
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleEnableAll = () => {
-    const allTrue = allKeys.reduce((acc, key) => ({ ...acc, [key]: true }), {});
-    setPreferences(allTrue);
-    setIsConfigured(true);
-    setTimeout(() => setIsConfigured(false), 3000);
+  const enableAll = () => {
+    const next = allKeys.reduce((acc, key) => ({ ...acc, [key]: true }), {});
+    setPreferences(next);
+    setDirty(true);
+    toast.success("All notifications enabled");
   };
 
-  const handleDisableAll = () => {
-    const allFalse = allKeys.reduce((acc, key) => ({ ...acc, [key]: false }), {});
-    setPreferences(allFalse);
-    setIsConfigured(true);
-    setTimeout(() => setIsConfigured(false), 3000);
+  const disableAll = () => {
+    const next = allKeys.reduce((acc, key) => ({ ...acc, [key]: false }), {});
+    setPreferences(next);
+    setDirty(true);
+    toast.success("All notifications disabled");
   };
 
-  const handleTestNotification = async () => {
-    if (onTestNotification) {
+  const resetDefaults = () => {
+    setPreferences({ ...DEFAULT_PREFS });
+    setDirty(true);
+    toast.info("Reset to recommended defaults");
+  };
+
+  const testNotification = () => {
+    if (!preferences.push) {
+      toast.error("Enable In-app Alerts first");
+      return;
+    }
+    toast.message("Test alert", {
+      description: preferences.contests
+        ? "Upcoming contest reminder would look like this."
+        : "This is how CodeTrack notifications appear.",
+      icon: <BellRing className="w-4 h-4 text-emerald-500" />,
+    });
+    if (preferences.sound) {
       try {
-        await onTestNotification();
-        toast.success("Test notification sent!");
-      } catch (error) {
-        toast.error("Failed to send test notification");
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = 880;
+        gain.gain.value = 0.05;
+        osc.start();
+        osc.stop(ctx.currentTime + 0.12);
+      } catch {
+        // Audio optional
       }
-    } else {
-      toast.info("Test notification would be sent here");
     }
   };
-
-  const handleReset = () => {
-    setPreferences(initialPreferences);
-    setIsConfigured(true);
-    setTimeout(() => setIsConfigured(false), 3000);
-  };
-
-  // Group items by category
-  const filteredItems = getFilteredItems();
 
   return (
-    <div className={`bg-white rounded-2xl shadow-lg border border-slate-100 hover:shadow-xl transition-shadow duration-300 p-6 ${className}`}>
+    <div
+      className={`bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 ${className}`}
+    >
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="p-2 bg-gradient-to-br from-green-500 to-teal-500 rounded-lg">
-              <Bell className="w-5 h-5 text-white" />
-            </div>
-            <h3 className="text-xl font-semibold text-slate-900">
-              {title}
+      <div className="flex items-start justify-between gap-3 mb-5">
+        <div className="flex items-start gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 shadow-sm">
+            <Bell className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h3 className="text-xl font-semibold text-slate-900 dark:text-white">
+              Notifications
             </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              Control how you receive updates
+            </p>
           </div>
-          <p className="text-sm text-slate-500 ml-12">
-            {subtitle}
-          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-            activeCount > allKeys.length / 2
-              ? "bg-green-100 text-green-700"
-              : "bg-yellow-100 text-yellow-700"
-          }`}>
-            {activeCount} active
-          </div>
-          {saving && (
-            <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
-          )}
-        </div>
+        <span
+          className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+            activeCount > inactiveCount
+              ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+              : "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300"
+          }`}
+        >
+          {activeCount} active
+        </span>
       </div>
 
-      {/* Search Bar */}
-      <div className="mb-4 relative">
+      {/* Search */}
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
         <input
           type="text"
-          placeholder="Search notifications..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+          placeholder="Search notifications…"
+          className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/30"
         />
-        <BellRing className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
         {searchQuery && (
           <button
-            onClick={() => setSearchQuery('')}
+            type="button"
+            onClick={() => setSearchQuery("")}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
           >
-            ✕
+            <X className="w-4 h-4" />
           </button>
         )}
       </div>
 
-      {/* Quick Stats */}
-      {showStats && (
-        <div className="grid grid-cols-3 gap-3 mb-6">
-          <div className="p-3 bg-blue-50 rounded-lg text-center">
-            <p className="text-2xl font-bold text-blue-600">{activeCount}</p>
-            <p className="text-xs text-slate-500">Active</p>
-          </div>
-          <div className="p-3 bg-slate-50 rounded-lg text-center">
-            <p className="text-2xl font-bold text-slate-600">{inactiveCount}</p>
-            <p className="text-xs text-slate-500">Inactive</p>
-          </div>
-          <div className="p-3 bg-purple-50 rounded-lg text-center">
-            <p className="text-2xl font-bold text-purple-600">{allKeys.length}</p>
-            <p className="text-xs text-slate-500">Total</p>
-          </div>
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-center border border-blue-100 dark:border-blue-500/20">
+          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+            {activeCount}
+          </p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Active</p>
         </div>
-      )}
-
-      {/* Filter Tabs */}
-      <div className="flex gap-2 mb-4">
-        <button
-          onClick={() => setActiveTab('all')}
-          className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-            activeTab === 'all'
-              ? 'bg-green-500 text-white'
-              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-          }`}
-        >
-          All ({allKeys.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('active')}
-          className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-            activeTab === 'active'
-              ? 'bg-green-500 text-white'
-              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-          }`}
-        >
-          Active ({activeCount})
-        </button>
-        <button
-          onClick={() => setActiveTab('inactive')}
-          className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-            activeTab === 'inactive'
-              ? 'bg-green-500 text-white'
-              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-          }`}
-        >
-          Inactive ({inactiveCount})
-        </button>
+        <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 text-center border border-slate-100 dark:border-slate-700">
+          <p className="text-2xl font-bold text-slate-600 dark:text-slate-300">
+            {inactiveCount}
+          </p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Inactive</p>
+        </div>
+        <div className="p-3 rounded-xl bg-violet-50 dark:bg-violet-500/10 text-center border border-violet-100 dark:border-violet-500/20">
+          <p className="text-2xl font-bold text-violet-600 dark:text-violet-400">
+            {allKeys.length}
+          </p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Total</p>
+        </div>
       </div>
 
-      {/* Notification Groups */}
-      <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
-        {filteredItems.length === 0 ? (
-          <div className="text-center py-8">
-            <BellOff className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+      {/* Tabs */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {[
+          { id: "all", label: `All (${allKeys.length})` },
+          { id: "active", label: `Active (${activeCount})` },
+          { id: "inactive", label: `Inactive (${inactiveCount})` },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+              activeTab === tab.id
+                ? "bg-emerald-500 text-white shadow-sm"
+                : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Groups */}
+      <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
+        {filtered.length === 0 ? (
+          <div className="text-center py-10">
+            <BellOff className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
             <p className="text-sm text-slate-500">No notifications found</p>
-            <p className="text-xs text-slate-400">Try adjusting your filters</p>
           </div>
         ) : (
-          notificationGroups.map((group, idx) => {
-            const groupItems = filteredItems.filter(({ group: g }) => g.title === group.title);
-            if (groupItems.length === 0) return null;
-
+          filtered.map((group) => {
             const Icon = group.icon;
-            const groupActiveCount = groupItems.filter(({ item }) => preferences[item.key]).length;
-
+            const groupActive = group.items.filter(
+              (i) => preferences[i.key]
+            ).length;
             return (
-              <div key={idx} className="border border-slate-100 rounded-xl overflow-hidden">
-                <div className="flex items-center justify-between p-3 bg-slate-50/50">
+              <div
+                key={group.title}
+                className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden"
+              >
+                <div className="flex items-center justify-between px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50">
                   <div className="flex items-center gap-2">
                     <Icon className="w-4 h-4 text-slate-500" />
-                    <span className="text-sm font-medium text-slate-700">{group.title}</span>
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                      {group.title}
+                    </span>
                   </div>
                   <span className="text-xs text-slate-400">
-                    {groupActiveCount}/{groupItems.length} active
+                    {groupActive}/{group.items.length} on
                   </span>
                 </div>
-                <div className="divide-y divide-slate-100">
-                  {groupItems.map(({ item }) => (
-                    <div 
-                      key={item.key} 
-                      className={`flex items-center justify-between p-3 hover:bg-slate-50 transition-colors ${
-                        preferences[item.key] ? 'bg-green-50/30' : ''
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {group.items.map((item) => (
+                    <div
+                      key={item.key}
+                      className={`flex items-center justify-between gap-3 p-3 ${
+                        preferences[item.key]
+                          ? "bg-emerald-50/40 dark:bg-emerald-500/5"
+                          : ""
                       }`}
                     >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-slate-700">
-                            {item.label}
-                          </p>
-                          {item.icon && (
-                            <span className="text-slate-400">{item.icon}</span>
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-400">{item.description}</p>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-800 dark:text-slate-100">
+                          {item.label}
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          {item.description}
+                        </p>
                       </div>
                       <Switch
-                        checked={preferences[item.key] || false}
-                        onCheckedChange={() => handleToggle(item.key)}
-                        disabled={loading}
-                        className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-green-500 data-[state=checked]:to-teal-500 ml-2 flex-shrink-0"
+                        checked={Boolean(preferences[item.key])}
+                        onCheckedChange={(checked) =>
+                          updatePref(item.key, checked)
+                        }
+                        className="data-[state=checked]:bg-emerald-500 flex-shrink-0"
                       />
                     </div>
                   ))}
@@ -356,117 +359,96 @@ function NotificationCard({
         )}
       </div>
 
-      {/* Configured Toast */}
-      {isConfigured && (
-        <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 animate-in slide-in-from-bottom-2">
-          <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
-          <p className="text-sm text-green-600 font-medium">
-            Notification preferences updated
-          </p>
-        </div>
-      )}
-
-      {/* Advanced Options */}
+      {/* Advanced */}
       <div className="mt-4">
         <button
-          onClick={() => setShowAdvanced(!showAdvanced)}
-          className="text-xs text-slate-400 hover:text-slate-600 transition-colors flex items-center gap-1"
+          type="button"
+          onClick={() => setShowAdvanced((o) => !o)}
+          className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
         >
-          <span>{showAdvanced ? '▼' : '▶'}</span>
-          Advanced Options
+          {showAdvanced ? "▼" : "▶"} Advanced options
         </button>
-
         {showAdvanced && (
-          <div className="mt-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={handleEnableAll}
-                className="p-2 text-xs bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
-              >
-                Enable All Notifications
-              </button>
-              <button
-                onClick={handleDisableAll}
-                className="p-2 text-xs bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
-              >
-                Disable All Notifications
-              </button>
-              <button
-                onClick={handleReset}
-                className="p-2 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors col-span-2"
-              >
-                Reset to Default Settings
-              </button>
-            </div>
+          <div className="mt-2 grid grid-cols-2 gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={enableAll}
+              className="p-2 text-xs rounded-lg bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:opacity-90"
+            >
+              Enable all
+            </button>
+            <button
+              type="button"
+              onClick={disableAll}
+              className="p-2 text-xs rounded-lg bg-red-100 dark:bg-red-500/15 text-red-700 dark:text-red-300 hover:opacity-90"
+            >
+              Disable all
+            </button>
+            <button
+              type="button"
+              onClick={resetDefaults}
+              className="p-2 text-xs rounded-lg bg-blue-100 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 hover:opacity-90 col-span-2"
+            >
+              Reset to defaults
+            </button>
           </div>
         )}
       </div>
 
-      {/* Action Buttons */}
-      {showActions && (
-        <div className="mt-6 pt-4 border-t border-slate-200 flex items-center gap-3 flex-wrap">
-          {onSave && (
-            <Button
-              onClick={handleSave}
-              disabled={loading}
-              className="bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white gap-2"
-              size="sm"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Check className="w-4 h-4" />
-                  Save Preferences
-                </>
-              )}
-            </Button>
+      {/* Actions */}
+      <div className="mt-5 pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center gap-2">
+        <Button
+          onClick={handleSave}
+          disabled={saving || !dirty}
+          size="sm"
+          className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-95 text-white gap-2 disabled:opacity-50"
+        >
+          {saving ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Saving…
+            </>
+          ) : (
+            <>
+              <Check className="w-4 h-4" />
+              Save Preferences
+            </>
           )}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={enableAll}
+          className="gap-1"
+        >
+          <BellRing className="w-3.5 h-3.5" />
+          Enable All
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={disableAll}
+          className="gap-1"
+        >
+          <BellOff className="w-3.5 h-3.5" />
+          Disable All
+        </Button>
+        <Button
+          size="sm"
+          onClick={testNotification}
+          className="ml-auto bg-gradient-to-r from-blue-600 to-indigo-600 text-white gap-2"
+        >
+          <Volume2 className="w-3.5 h-3.5" />
+          Test
+        </Button>
+      </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleEnableAll}
-            disabled={loading}
-            className="gap-1"
-          >
-            <BellRing className="w-3.5 h-3.5" />
-            Enable All
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleDisableAll}
-            disabled={loading}
-            className="gap-1"
-          >
-            <BellOff className="w-3.5 h-3.5" />
-            Disable All
-          </Button>
-
-          <Button
-            size="sm"
-            onClick={handleTestNotification}
-            disabled={loading}
-            className="ml-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white gap-2"
-          >
-            <Volume2 className="w-3.5 h-3.5" />
-            Test Notification
-          </Button>
-        </div>
-      )}
-
-      {/* Footer */}
-      <div className="mt-4 flex items-center gap-2 text-[10px] text-slate-400">
+      <div className="mt-3 flex items-center gap-2 text-[10px] text-slate-400">
         <Clock className="w-3 h-3" />
-        <span>Last updated: {new Date().toLocaleString()}</span>
-        <span className="text-slate-300">•</span>
-        <Globe className="w-3 h-3" />
-        <span>All preferences are saved locally</span>
+        <span>Last saved: {lastSaved.toLocaleString()}</span>
+        {dirty && (
+          <span className="text-amber-500 font-medium">· Unsaved changes</span>
+        )}
       </div>
     </div>
   );

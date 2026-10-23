@@ -13,3 +13,9 @@ export const getRatingHistory = async () => {
 
   return response.data;
 };
+
+/** Force a full Codeforces sync (submissions + profile). */
+export const syncCodeforces = async () => {
+  const response = await api.post("/users/sync");
+  return response.data;
+};
