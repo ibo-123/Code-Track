@@ -9,7 +9,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "node --test --test-concurrency=1 --test-reporter=spec tests/submission.unified.test.js tests/leetcode.phase2.test.js tests/analysis.phase3.test.js",
+    "test": "node --test --test-concurrency=1 --test-reporter=spec tests/submission.unified.test.js tests/leetcode.phase2.test.js tests/analysis.phase3.test.js tests/ai.provider.test.js tests/ai.contract.test.js",
     "migrate:submissions-phase1": "node src/scripts/migrateSubmissionsPhase1.js"
   },
   "keywords": [],
