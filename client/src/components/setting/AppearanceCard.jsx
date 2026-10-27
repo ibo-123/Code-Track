@@ -117,18 +117,19 @@ function AppearanceCard({ className = "" }) {
         </div>
 
         {/* Live preview */}
-        <button
-          type="button"
-          onClick={() => setPreviewOpen((o) => !o)}
-          className="w-full mb-6 p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 text-left hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
-        >
-          <div className="flex items-center justify-between gap-3">
+        <div className="w-full mb-6 p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50">
+          <button
+            type="button"
+            onClick={() => setPreviewOpen((o) => !o)}
+            className="w-full flex items-center justify-between gap-3 text-left"
+            aria-expanded={previewOpen}
+          >
             <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
               <Eye className="w-4 h-4" />
               <span className="text-xs font-medium">Preview your current theme</span>
             </div>
             <span className="text-xs text-slate-400">{previewOpen ? "▼" : "▶"}</span>
-          </div>
+          </button>
           <div className="mt-3 flex items-center gap-2 flex-wrap">
             <span
               className={`w-7 h-7 rounded-full border-2 border-white dark:border-slate-900 shadow-sm ${
@@ -138,6 +139,7 @@ function AppearanceCard({ className = "" }) {
             <span
               className="w-7 h-7 rounded-full border-2 border-white dark:border-slate-900 shadow-sm"
               style={{ backgroundColor: accentHex }}
+              title={currentColor.label}
             />
             <span className="text-xs text-slate-500 dark:text-slate-400 ml-1">
               {currentTheme.label} · {currentColor.label} · {currentFont.label}
@@ -150,7 +152,9 @@ function AppearanceCard({ className = "" }) {
                 <div className={`flex items-center gap-3 ${currentFont.sample}`}>
                   <div
                     className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold"
-                    style={{ backgroundColor: accentHex }}
+                    style={{
+                      background: `linear-gradient(135deg, var(--accent-from), var(--accent-to))`,
+                    }}
                   >
                     A
                   </div>
@@ -168,7 +172,7 @@ function AppearanceCard({ className = "" }) {
                     className="px-2.5 py-1 text-xs text-white rounded-full"
                     style={{ backgroundColor: accentHex }}
                   >
-                    Accent
+                    {currentColor.label}
                   </span>
                   <span className="px-2.5 py-1 text-xs rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                     {theme === "dark" ? "Dark mode" : "Light mode"}
@@ -177,7 +181,7 @@ function AppearanceCard({ className = "" }) {
               </div>
             </div>
           )}
-        </button>
+        </div>
 
         {/* Theme mode */}
         <div className="mb-6">
@@ -232,9 +236,9 @@ function AppearanceCard({ className = "" }) {
         {/* Color scheme */}
         <div className="mb-6">
           <p className="text-sm font-medium text-slate-700 dark:text-slate-200 mb-3">
-            Color Scheme
+            Accent color
           </p>
-          <div className="flex gap-3 flex-wrap">
+          <div className="grid grid-cols-4 sm:grid-cols-8 gap-3 pb-1">
             {COLOR_SCHEMES.map(({ id, color, label }) => {
               const selected = colorScheme === id;
               return (
@@ -245,23 +249,35 @@ function AppearanceCard({ className = "" }) {
                     setColorScheme(id);
                     toast.success(`Accent set to ${label}`);
                   }}
-                  className="relative group"
+                  className={`relative flex flex-col items-center gap-1.5 p-1 rounded-lg transition-colors ${
+                    selected
+                      ? "bg-slate-100 dark:bg-slate-800/80"
+                      : "hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                  }`}
                   aria-label={label}
+                  aria-pressed={selected}
                   title={label}
                 >
                   <span
-                    className={`block w-10 h-10 rounded-full ${color} ring-2 ring-offset-2 dark:ring-offset-slate-900 transition-all ${
+                    className={`relative block w-10 h-10 rounded-full ${color} ring-2 ring-offset-2 dark:ring-offset-slate-900 transition-transform ${
                       selected
-                        ? "ring-slate-900 dark:ring-white scale-110"
+                        ? "ring-[var(--accent)] scale-105"
                         : "ring-transparent hover:ring-slate-300 dark:hover:ring-slate-600"
                     }`}
-                  />
-                  {selected && (
-                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-white dark:bg-slate-900 rounded-full shadow flex items-center justify-center">
-                      <Check className="w-3 h-3 text-emerald-500" />
-                    </span>
-                  )}
-                  <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] text-slate-400 opacity-0 group-hover:opacity-100 whitespace-nowrap">
+                  >
+                    {selected && (
+                      <span className="absolute inset-0 flex items-center justify-center">
+                        <Check className="w-4 h-4 text-white drop-shadow" />
+                      </span>
+                    )}
+                  </span>
+                  <span
+                    className={`text-[10px] ${
+                      selected
+                        ? "text-slate-700 dark:text-slate-200 font-medium"
+                        : "text-slate-400"
+                    }`}
+                  >
                     {label}
                   </span>
                 </button>

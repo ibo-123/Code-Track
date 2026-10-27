@@ -28,7 +28,7 @@ export const upsertCodeforcesConnection = async (
         ...extra,
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
   );
 };
 
@@ -54,7 +54,7 @@ export const upsertLeetCodeUsernameSaved = async (userId, handle) => {
         lastSyncError: null,
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
   );
 };
 
@@ -62,7 +62,7 @@ export const markSyncAttempt = async (userId, platform) => {
   return PlatformConnection.findOneAndUpdate(
     { userId, platform },
     { $set: { lastSyncAttemptAt: new Date() } },
-    { new: true }
+    { returnDocument: "after" }
   );
 };
 
@@ -78,7 +78,7 @@ export const markSyncSuccess = async (userId, platform, syncCursor = null) => {
   return PlatformConnection.findOneAndUpdate(
     { userId, platform },
     { $set },
-    { new: true }
+    { returnDocument: "after" }
   );
 };
 
@@ -92,7 +92,7 @@ export const markSyncFailure = async (userId, platform, error) => {
         status: CONNECTION_STATUS.SYNC_ERROR,
       },
     },
-    { new: true }
+    { returnDocument: "after" }
   );
 };
 

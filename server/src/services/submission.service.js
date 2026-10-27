@@ -12,17 +12,81 @@ const MAX_PAGE_SIZE = 100;
 const DEFAULT_PAGE_SIZE = 20;
 
 /**
+ * Store or replace source for a submission owned by userId.
+ */
+export const saveSubmissionSource = async ({
+  userId,
+  submissionId,
+  sourceCode,
+  programmingLanguage,
+}) => {
+  if (!sourceCode || typeof sourceCode !== "string") {
+    throw new Error("sourceCode is required");
+  }
+
+  const submission = await Submission.findOne({ _id: submissionId, userId });
+  if (!submission) {
+    const err = new Error("Submission not found");
+    err.status = 404;
+    throw err;
+  }
+
+  const contentHash = hashSourceContent(sourceCode);
+  const existing = await SubmissionSource.findOne({ submission: submissionId });
+
+  let source;
+  if (existing) {
+    existing.sourceCode = sourceCode;
+    existing.contentHash = contentHash;
+    existing.programmingLanguage =
+      programmingLanguage || existing.programmingLanguage;
+    existing.version = (existing.version || 1) + 1;
+    source = await existing.save();
+  } else {
+    source = await SubmissionSource.create({
+      userId,
+      submission: submissionId,
+      sourceCode,
+      programmingLanguage:
+        programmingLanguage || submission.programmingLanguage,
+      contentHash,
+      version: 1,
+    });
+  }
+
+  submission.sourceAvailable = true;
+  submission.sourceHash = contentHash;
+  submission.sourceStatus = "available";
+  await submission.save();
+
+  return source;
+};
+
+/**
  * Bulk upsert Codeforces submissions into the unified model.
  * Dedupes on (userId, platform, platformSubmissionId).
  * Partial failure of one op does not abort the batch (ordered: false).
  */
 export const upsertCodeforcesSubmissions = async (userId, rawSubmissions) => {
   if (!Array.isArray(rawSubmissions) || rawSubmissions.length === 0) {
-    return { upserted: 0, matched: 0 };
+    return { upserted: 0, matched: 0, sourcesSaved: 0 };
   }
 
   const ops = rawSubmissions.map((sub) => {
     const doc = mapCodeforcesSubmission(userId, sub);
+    const sourceText =
+      typeof sub.source === "string" && sub.source.trim().length > 0
+        ? sub.source
+        : typeof sub.sourceBase64 === "string" && sub.sourceBase64.length > 0
+          ? Buffer.from(sub.sourceBase64, "base64").toString("utf8")
+          : null;
+    if (sourceText) {
+      doc.sourceAvailable = true;
+      doc.sourceStatus = "available";
+      doc.sourceHash = hashSourceContent(sourceText);
+      // stash for the persist loop below
+      sub.__decodedSource = sourceText;
+    }
     const {
       userId: uid,
       platform,
@@ -51,10 +115,43 @@ export const upsertCodeforcesSubmissions = async (userId, rawSubmissions) => {
   });
 
   const result = await Submission.bulkWrite(ops, { ordered: false });
+
+  // Persist source blobs when CF returned them (includeSources / authenticated)
+  let sourcesSaved = 0;
+  const withSource = rawSubmissions.filter(
+    (s) =>
+      (typeof s.__decodedSource === "string" && s.__decodedSource.length > 0) ||
+      (typeof s.source === "string" && s.source.trim().length > 0)
+  );
+  for (const sub of withSource) {
+    try {
+      const submission = await Submission.findOne({
+        userId,
+        platform: PLATFORMS.CODEFORCES,
+        platformSubmissionId: String(sub.id),
+      }).select("_id programmingLanguage language");
+      if (!submission) continue;
+      const sourceCode = sub.__decodedSource || sub.source;
+      await saveSubmissionSource({
+        userId,
+        submissionId: submission._id,
+        sourceCode,
+        programmingLanguage:
+          sub.programmingLanguage ||
+          submission.language ||
+          submission.programmingLanguage,
+      });
+      sourcesSaved++;
+    } catch (err) {
+      console.error("CF source persist failed:", err.message);
+    }
+  }
+
   return {
     upserted: result.upsertedCount || 0,
     matched: result.matchedCount || 0,
     modified: result.modifiedCount || 0,
+    sourcesSaved,
   };
 };
 
@@ -244,35 +341,42 @@ export const getSubmissionSourceForUser = async (
     return { error: "forbidden" };
   }
 
-  if (!submission.sourceAvailable) {
-    return { error: "no_source", submission };
-  }
-
+  // Prefer the source document — do not trust sourceAvailable alone
+  // (flags can lag after paste / platform import).
   const source = await SubmissionSource.findOne({
     submission: submission._id,
     ...(isAdmin ? {} : { userId }),
   }).lean();
 
-  if (!source) {
+  if (!source?.sourceCode) {
     return { error: "no_source", submission };
+  }
+
+  // Heal stale flags so list UI shows "View"
+  if (!submission.sourceAvailable) {
+    await Submission.updateOne(
+      { _id: submission._id },
+      {
+        $set: {
+          sourceAvailable: true,
+          sourceStatus: "available",
+          sourceHash: source.contentHash || submission.sourceHash,
+        },
+      }
+    );
+    submission.sourceAvailable = true;
+    submission.sourceStatus = "available";
   }
 
   return { submission, source };
 };
 
 /**
- * Store or replace source for a submission owned by userId.
+ * Try to pull source for one CF submission via user.status?includeSources=true.
+ * Requires CF API credentials for "own account" access in most cases;
+ * still attempts anonymously and returns a clear error when unavailable.
  */
-export const saveSubmissionSource = async ({
-  userId,
-  submissionId,
-  sourceCode,
-  programmingLanguage,
-}) => {
-  if (!sourceCode || typeof sourceCode !== "string") {
-    throw new Error("sourceCode is required");
-  }
-
+export const fetchPlatformSourceForSubmission = async (userId, submissionId) => {
   const submission = await Submission.findOne({ _id: submissionId, userId });
   if (!submission) {
     const err = new Error("Submission not found");
@@ -280,35 +384,62 @@ export const saveSubmissionSource = async ({
     throw err;
   }
 
-  const contentHash = hashSourceContent(sourceCode);
-  const existing = await SubmissionSource.findOne({ submission: submissionId });
-
-  let source;
-  if (existing) {
-    existing.sourceCode = sourceCode;
-    existing.contentHash = contentHash;
-    existing.programmingLanguage =
-      programmingLanguage || existing.programmingLanguage;
-    existing.version = (existing.version || 1) + 1;
-    source = await existing.save();
-  } else {
-    source = await SubmissionSource.create({
-      userId,
-      submission: submissionId,
-      sourceCode,
-      programmingLanguage:
-        programmingLanguage || submission.programmingLanguage,
-      contentHash,
-      version: 1,
-    });
+  const existing = await SubmissionSource.findOne({
+    submission: submission._id,
+    userId,
+  }).lean();
+  if (existing?.sourceCode) {
+    return {
+      source: existing,
+      fetched: false,
+      platform: submission.platform,
+    };
   }
 
-  submission.sourceAvailable = true;
-  submission.sourceHash = contentHash;
-  submission.sourceStatus = "available";
-  await submission.save();
+  if (submission.platform !== PLATFORMS.CODEFORCES) {
+    const err = new Error(
+      "Automatic source import is only available for Codeforces. Paste your source to continue."
+    );
+    err.status = 422;
+    err.code = "SOURCE_IMPORT_UNSUPPORTED";
+    throw err;
+  }
 
-  return source;
+  const { fetchCodeforcesSubmissionSource } = await import(
+    "./codeforces.services.js"
+  );
+  const raw = await fetchCodeforcesSubmissionSource(userId, submission);
+
+  if (!raw?.source) {
+    const err = new Error(
+      raw?.needsCredentials
+        ? "Codeforces source import needs CF_API_KEY and CF_API_SECRET in server/.env (key must belong to your connected handle). Until then, open the submission page and paste the code."
+        : "Codeforces did not return source for this submission. Open the CF submission page and paste the code."
+    );
+    err.status = 404;
+    err.code = raw?.needsCredentials
+      ? "CF_CREDENTIALS_REQUIRED"
+      : "SOURCE_NOT_ON_PLATFORM";
+    err.submissionUrl = raw?.submissionUrl || null;
+    throw err;
+  }
+
+  const source = await saveSubmissionSource({
+    userId,
+    submissionId: submission._id,
+    sourceCode: raw.source,
+    programmingLanguage:
+      raw.programmingLanguage ||
+      submission.language ||
+      submission.programmingLanguage,
+  });
+
+  return {
+    source,
+    fetched: true,
+    platform: submission.platform,
+    submissionUrl: raw.submissionUrl || null,
+  };
 };
 
 export { isAcceptedVerdict, PLATFORMS };

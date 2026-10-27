@@ -47,7 +47,7 @@ export const connectCodeforces = async (req, res) => {
           cfUser.titlePhoto || cfUser.avatar
         ),
       },
-      { new: true }
+      { returnDocument: "after" }
     ).select("-password");
 
     // Track authenticated CF connection (handle validated via CF API)

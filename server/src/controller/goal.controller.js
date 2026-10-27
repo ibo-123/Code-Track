@@ -34,7 +34,7 @@ export const updateGoal = async (req, res) => {
     const goal = await Goal.findOneAndUpdate(
       { _id: id, userId: req.user.id },
       { $set: { currentValue, isCompleted } },
-      { new: true }
+      { returnDocument: "after" }
     );
     
     if (!goal) return res.status(404).json({ success: false, message: "Goal not found" });

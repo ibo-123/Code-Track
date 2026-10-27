@@ -6,8 +6,13 @@ export const analyzeSubmission = async (submissionId) => {
 };
 
 export const getSubmissionAnalysis = async (submissionId) => {
-  const response = await api.get(`/submissions/${submissionId}/analysis`);
-  return response.data.analysis;
+  try {
+    const response = await api.get(`/submissions/${submissionId}/analysis`);
+    return response.data.analysis;
+  } catch (err) {
+    if (err.response?.status === 404) return null;
+    throw err;
+  }
 };
 
 export const listSubmissionAnalyses = async (submissionId, params = {}) => {
@@ -24,16 +29,5 @@ export const getAnalysis = async (analysisId) => {
 
 export const retryAnalysis = async (analysisId) => {
   const response = await api.post(`/analyses/${analysisId}/retry`);
-  return response.data;
-};
-
-export const saveSubmissionSource = async (
-  submissionId,
-  { sourceCode, programmingLanguage }
-) => {
-  const response = await api.put(`/submissions/${submissionId}/source`, {
-    sourceCode,
-    programmingLanguage,
-  });
   return response.data;
 };

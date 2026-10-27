@@ -72,7 +72,10 @@ function UserAvatar({ user, size = "md", className = "" }) {
 
   return (
     <div
-      className={`${sizeClass} rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-white font-semibold flex-shrink-0 ${className}`}
+      className={`${sizeClass} rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0 ${className}`}
+      style={{
+        background: `linear-gradient(135deg, var(--accent-from), var(--accent-to))`,
+      }}
     >
       {initial}
     </div>
@@ -299,10 +302,21 @@ function DashboardLayout({ children }) {
         <div className="flex flex-col h-full">
           <div className="p-6 border-b border-slate-200 dark:border-slate-800">
             <Link to="/dashboard" className="flex items-center gap-2">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-purple-600 to-blue-600 shadow-lg shadow-purple-500/30">
+              <div
+                className="p-2 rounded-xl shadow-lg"
+                style={{
+                  background: `linear-gradient(135deg, var(--accent-from), var(--accent-to))`,
+                  boxShadow: `0 10px 24px rgb(var(--accent-rgb) / 0.3)`,
+                }}
+              >
                 <Code2 className="w-6 h-6 text-white" />
               </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+              <span
+                className="text-xl font-bold bg-clip-text text-transparent"
+                style={{
+                  backgroundImage: `linear-gradient(90deg, var(--accent-from), var(--accent-to))`,
+                }}
+              >
                 CodeTrack
               </span>
             </Link>
@@ -318,15 +332,26 @@ function DashboardLayout({ children }) {
                   to={item.href}
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                     active
-                      ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 font-medium"
+                      ? "font-medium"
                       : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
                   }`}
+                  style={
+                    active
+                      ? {
+                          backgroundColor: "var(--accent-bg)",
+                          color: "var(--accent)",
+                        }
+                      : undefined
+                  }
                   onClick={() => setIsSidebarOpen(false)}
                 >
                   <Icon className="w-5 h-5" />
                   <span>{item.name}</span>
                   {active && (
-                    <div className="ml-auto w-1.5 h-8 bg-purple-500 rounded-full" />
+                    <div
+                      className="ml-auto w-1.5 h-8 rounded-full"
+                      style={{ backgroundColor: "var(--accent)" }}
+                    />
                   )}
                 </Link>
               );

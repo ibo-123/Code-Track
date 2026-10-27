@@ -1,4 +1,5 @@
 import axios from "axios";
+import crypto from "crypto";
 import http from "http";
 import https from "https";
 import User from "../models/UserModel.js";
@@ -14,7 +15,10 @@ import {
   markSyncSuccess,
   upsertCodeforcesConnection,
 } from "./platformConnection.service.js";
-import { normalizeCodeforcesAvatar } from "../utils/submissionNormalize.js";
+import {
+  buildCodeforcesSubmissionUrl,
+  normalizeCodeforcesAvatar,
+} from "../utils/submissionNormalize.js";
 
 const BASE_URL = "https://codeforces.com/api";
 
@@ -43,12 +47,73 @@ const validateHandle = (handle) => {
   return handle.trim();
 };
 
-const cfGet = async (path, params = {}) => {
-  const response = await cfClient.get(path, { params });
-  if (response.data?.status !== "OK") {
-    throw new Error(response.data?.comment || "Codeforces API error");
+/**
+ * Optional CF API key/secret (env) enable includeSources for the key owner's handle.
+ * Generate at https://codeforces.com/settings/api
+ */
+export const hasCfApiCredentials = () =>
+  Boolean(process.env.CF_API_KEY?.trim() && process.env.CF_API_SECRET?.trim());
+
+const signCfParams = (methodName, params = {}) => {
+  const apiKey = process.env.CF_API_KEY;
+  const apiSecret = process.env.CF_API_SECRET;
+  if (!apiKey || !apiSecret) return { ...params };
+
+  const time = Math.floor(Date.now() / 1000);
+  const signed = { ...params, apiKey, time };
+  const rand = crypto.randomBytes(3).toString("hex");
+  const sorted = Object.keys(signed)
+    .sort()
+    .map((k) => `${k}=${signed[k]}`)
+    .join("&");
+  const hash = crypto
+    .createHash("sha512")
+    .update(`${rand}/${methodName}?${sorted}#${apiSecret}`)
+    .digest("hex");
+  return { ...signed, apiSig: `${rand}${hash}` };
+};
+
+const cfGet = async (path, params = {}, { timeout } = {}) => {
+  const methodName = String(path).replace(/^\//, "");
+  const signedParams = signCfParams(methodName, params);
+  try {
+    const response = await cfClient.get(path, {
+      params: signedParams,
+      ...(timeout ? { timeout } : {}),
+    });
+    if (response.data?.status !== "OK") {
+      throw new Error(response.data?.comment || "Codeforces API error");
+    }
+    return response.data.result;
+  } catch (error) {
+    const comment =
+      error.response?.data?.comment ||
+      error.response?.data?.message ||
+      error.message;
+    const err = new Error(comment || "Codeforces API error");
+    err.status = error.response?.status;
+    err.cfComment = comment;
+    throw err;
   }
-  return response.data.result;
+};
+
+/** Prefer plain `source`, else decode CF's `sourceBase64`. */
+export const extractCfSourceText = (rawSubmission) => {
+  if (!rawSubmission || typeof rawSubmission !== "object") return null;
+  if (typeof rawSubmission.source === "string" && rawSubmission.source.length) {
+    return rawSubmission.source;
+  }
+  if (
+    typeof rawSubmission.sourceBase64 === "string" &&
+    rawSubmission.sourceBase64.length
+  ) {
+    try {
+      return Buffer.from(rawSubmission.sourceBase64, "base64").toString("utf8");
+    } catch {
+      return null;
+    }
+  }
+  return null;
 };
 
 export const getCodeforcesUser = async (handle) => {
@@ -98,24 +163,100 @@ export const getRatingHistory = async (handle) => {
 /**
  * Fetch a page of submissions from CF user.status.
  * @param {string} handle
- * @param {{ from?: number, count?: number }} options
+ * @param {{ from?: number, count?: number, includeSources?: boolean }} options
  */
-export const getSubmissions = async (handle, { from = 1, count } = {}) => {
+export const getSubmissions = async (
+  handle,
+  { from = 1, count, includeSources = false } = {}
+) => {
   try {
     handle = validateHandle(handle);
     const params = { handle, from };
     if (count != null) params.count = count;
+    // CF expects the string "true" (boolean also works via axios, keep explicit)
+    if (includeSources) params.includeSources = "true";
     const timeout =
-      count == null || count > 500 ? 20_000 : count > 200 ? 12_000 : 8_000;
-    const response = await cfClient.get("/user.status", { params, timeout });
-    if (response.data?.status !== "OK") {
-      throw new Error(response.data?.comment || "Unable to fetch submissions");
-    }
-    return response.data.result || [];
+      includeSources
+        ? 25_000
+        : count == null || count > 500
+          ? 20_000
+          : count > 200
+            ? 12_000
+            : 8_000;
+    return (await cfGet("/user.status", params, { timeout })) || [];
   } catch (error) {
     if (error.message?.startsWith("Unable to fetch")) throw error;
-    throw new Error("Unable to fetch submissions");
+    throw new Error(error.message || "Unable to fetch submissions");
   }
+};
+
+/**
+ * Locate one submission's source via CF user.status?includeSources=true.
+ * Returns { source, programmingLanguage, submissionUrl } or { submissionUrl } when missing.
+ * Skips the CF call when CF_API_KEY/SECRET are not configured (anonymous includeSources → 400).
+ */
+export const fetchCodeforcesSubmissionSource = async (userId, submission) => {
+  const user = await User.findById(userId).select("codeforcesHandle");
+  const handle = user?.codeforcesHandle;
+  const platformSubmissionId = String(
+    submission.platformSubmissionId || submission.submissionId || ""
+  );
+  const contestId = submission.contestId;
+  const submissionUrl = buildCodeforcesSubmissionUrl(
+    contestId,
+    platformSubmissionId
+  );
+
+  if (!handle || !platformSubmissionId) {
+    return { source: null, submissionUrl, needsCredentials: !hasCfApiCredentials() };
+  }
+
+  // includeSources only works for the API key owner's own account — don't spam CF with 400s
+  if (!hasCfApiCredentials()) {
+    return {
+      source: null,
+      submissionUrl,
+      needsCredentials: true,
+    };
+  }
+
+  // Scan recent pages (newest first) until we find this submission id
+  const pageSize = 100;
+  const maxPages = 10;
+  for (let page = 0; page < maxPages; page++) {
+    const from = page * pageSize + 1;
+    let batch = [];
+    try {
+      batch = await getSubmissions(handle, {
+        from,
+        count: pageSize,
+        includeSources: true,
+      });
+    } catch (err) {
+      if (page === 0) {
+        console.warn(
+          "CF includeSources failed:",
+          err.message,
+          "— paste source manually, or check CF_API_KEY/SECRET match this handle."
+        );
+      }
+      return { source: null, submissionUrl, needsCredentials: false };
+    }
+    if (!batch.length) break;
+
+    const hit = batch.find((s) => String(s.id) === platformSubmissionId);
+    if (hit) {
+      return {
+        source: extractCfSourceText(hit),
+        programmingLanguage: hit.programmingLanguage || null,
+        submissionUrl,
+        needsCredentials: false,
+      };
+    }
+    if (batch.length < pageSize) break;
+  }
+
+  return { source: null, submissionUrl, needsCredentials: false };
 };
 
 /**

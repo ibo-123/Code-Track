@@ -4,9 +4,11 @@ import {
   getSubmissionSourceForUser,
   listUserSubmissions,
   saveSubmissionSource,
+  fetchPlatformSourceForSubmission,
 } from "../services/submission.service.js";
 import { PLATFORM_VALUES, SOURCE_STATUS } from "../constants/platforms.js";
 import { MAX_SOURCE_BYTES } from "../analysis/version.js";
+import { buildCodeforcesSubmissionUrl } from "../utils/submissionNormalize.js";
 
 const isAdmin = (req) => req.user?.role === "admin";
 
@@ -137,10 +139,23 @@ export const getSubmissionSource = async (req, res) => {
     }
 
     if (result.error === "no_source") {
+      const sub = result.submission;
+      const submissionUrl =
+        sub?.platform === "codeforces"
+          ? buildCodeforcesSubmissionUrl(
+              sub.contestId,
+              sub.platformSubmissionId || sub.submissionId
+            )
+          : null;
       return res.status(404).json({
         success: false,
         message: "Source code is not available for this submission",
         sourceAvailable: false,
+        sourceStatus: sub?.sourceStatus || SOURCE_STATUS.UNAVAILABLE,
+        platform: sub?.platform || null,
+        submissionUrl,
+        programmingLanguage:
+          sub?.language || sub?.programmingLanguage || null,
       });
     }
 
@@ -150,17 +165,51 @@ export const getSubmissionSource = async (req, res) => {
       platform: result.submission.platform,
       programmingLanguage:
         result.source.programmingLanguage ||
+        result.submission.language ||
         result.submission.programmingLanguage,
       contentHash: result.source.contentHash,
       version: result.source.version,
       sourceCode: result.source.sourceCode,
       updatedAt: result.source.updatedAt,
+      sourceAvailable: true,
     });
   } catch (error) {
     console.error("Get submission source error:", error.message);
     return res.status(500).json({
       success: false,
       message: "Failed to fetch submission source",
+    });
+  }
+};
+
+/**
+ * POST /api/submissions/:id/fetch-source
+ * Attempt to import source from the platform (CF includeSources when available).
+ */
+export const fetchSubmissionSource = async (req, res) => {
+  try {
+    const result = await fetchPlatformSourceForSubmission(
+      req.user.id,
+      req.params.id
+    );
+    return res.status(200).json({
+      success: true,
+      fetched: result.fetched,
+      platform: result.platform,
+      submissionUrl: result.submissionUrl || null,
+      contentHash: result.source.contentHash,
+      version: result.source.version,
+      programmingLanguage: result.source.programmingLanguage,
+      sourceCode: result.source.sourceCode,
+      sourceAvailable: true,
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    return res.status(status).json({
+      success: false,
+      message: error.message || "Failed to import source",
+      code: error.code || null,
+      submissionUrl: error.submissionUrl || null,
     });
   }
 };

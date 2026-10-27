@@ -77,6 +77,15 @@ export const isAcceptedVerdict = (verdict) => {
   return v === "OK" || v === "ACCEPTED" || v === "AC";
 };
 
+/** Deep link to a single CF submission page (for copying source manually). */
+export const buildCodeforcesSubmissionUrl = (contestId, submissionId) => {
+  if (submissionId == null) return null;
+  if (contestId != null && contestId !== "") {
+    return `https://codeforces.com/contest/${contestId}/submission/${submissionId}`;
+  }
+  return `https://codeforces.com/problemset/submission/${submissionId}`;
+};
+
 export const buildCodeforcesProblemUrl = (contestId, index) => {
   if (contestId == null || !index) return null;
   const id = Number(contestId);

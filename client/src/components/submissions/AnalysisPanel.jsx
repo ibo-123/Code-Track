@@ -3,10 +3,13 @@ import {
   AlertCircle,
   BrainCircuit,
   CheckCircle2,
+  Download,
+  ExternalLink,
   Loader2,
   RefreshCw,
   Sparkles,
   TriangleAlert,
+  Bot,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
@@ -14,11 +17,22 @@ import {
   analyzeSubmission,
   getSubmissionAnalysis,
   retryAnalysis,
-  saveSubmissionSource,
 } from "../../services/analysisService";
+import {
+  fetchSubmissionSourceFromPlatform,
+  getSubmissionSource,
+  saveSubmissionSource,
+} from "../../services/submissionService";
+import {
+  REVIEW_TYPES,
+  getAiStatus,
+  getSubmissionReview,
+  requestAiReview,
+} from "../../services/reviewService";
 
 const severityClass = {
-  error: "border-red-300 bg-red-50 text-red-900 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-100",
+  error:
+    "border-red-300 bg-red-50 text-red-900 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-100",
   warning:
     "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100",
   info: "border-slate-200 bg-slate-50 text-slate-800 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-200",
@@ -67,24 +81,68 @@ function ComplexityBlock({ title, data }) {
 }
 
 /**
- * Analysis detail + run/retry controls for one submission.
+ * Analysis detail + source load/paste + run/retry for one submission.
  */
-export default function AnalysisPanel({ submission, onClose }) {
+export default function AnalysisPanel({ submission, onClose, onSourceSaved }) {
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [sourceLoading, setSourceLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [storedSource, setStoredSource] = useState(null);
   const [sourceDraft, setSourceDraft] = useState("");
   const [langDraft, setLangDraft] = useState(
-    submission?.programmingLanguage || submission?.language || "GNU C++17"
+    submission?.language ||
+      submission?.programmingLanguage ||
+      "GNU C++17"
   );
-  const needsSource = !submission?.sourceAvailable;
+  const [submissionUrl, setSubmissionUrl] = useState(null);
+  const [showPaste, setShowPaste] = useState(false);
+  const [aiStatus, setAiStatus] = useState(null);
+  const [reviewType, setReviewType] = useState("explain");
+  const [aiReview, setAiReview] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiRunning, setAiRunning] = useState(false);
 
-  const load = useCallback(async () => {
+  const hasUsableSource =
+    Boolean(storedSource?.sourceCode) || Boolean(sourceDraft.trim());
+
+  const loadSource = useCallback(async () => {
+    if (!submission?._id) return;
+    setSourceLoading(true);
+    try {
+      const src = await getSubmissionSource(submission._id);
+      if (src.ok && src.sourceCode) {
+        setStoredSource(src);
+        setLangDraft(
+          src.programmingLanguage ||
+            submission.language ||
+            submission.programmingLanguage ||
+            "GNU C++17"
+        );
+        setShowPaste(false);
+        setSubmissionUrl(null);
+      } else {
+        setStoredSource(null);
+        setSubmissionUrl(src.submissionUrl || null);
+        if (src.programmingLanguage) setLangDraft(src.programmingLanguage);
+        setShowPaste(true);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to load source");
+      setShowPaste(true);
+    } finally {
+      setSourceLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submission?._id]);
+
+  const loadAnalysis = useCallback(async () => {
     if (!submission?._id) return;
     setLoading(true);
     try {
       const a = await getSubmissionAnalysis(submission._id);
-      setAnalysis(a);
+      setAnalysis(a || null);
     } catch {
       setAnalysis(null);
     } finally {
@@ -92,25 +150,139 @@ export default function AnalysisPanel({ submission, onClose }) {
     }
   }, [submission?._id]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const runAnalyze = async () => {
-    setRunning(true);
+  const loadAiReview = useCallback(async () => {
+    if (!submission?._id) return;
+    setAiLoading(true);
     try {
-      if (needsSource && sourceDraft.trim()) {
+      const [status, review] = await Promise.all([
+        getAiStatus().catch(() => null),
+        getSubmissionReview(submission._id, reviewType),
+      ]);
+      setAiStatus(status);
+      setAiReview(review);
+    } catch {
+      setAiReview(null);
+    } finally {
+      setAiLoading(false);
+    }
+  }, [submission?._id, reviewType]);
+
+  useEffect(() => {
+    loadSource();
+    loadAnalysis();
+  }, [loadSource, loadAnalysis]);
+
+  useEffect(() => {
+    loadAiReview();
+  }, [loadAiReview]);
+
+  const runAiReview = async () => {
+    if (!hasUsableSource && !storedSource?.sourceCode) {
+      toast.error("Save source code before requesting an AI review");
+      setShowPaste(true);
+      return;
+    }
+    // Ensure pasted source is saved first
+    if (!storedSource?.sourceCode && sourceDraft.trim()) {
+      try {
         await saveSubmissionSource(submission._id, {
           sourceCode: sourceDraft,
           programmingLanguage: langDraft,
         });
-        submission.sourceAvailable = true;
+        const refreshed = await getSubmissionSource(submission._id);
+        if (refreshed.ok) {
+          setStoredSource(refreshed);
+          setShowPaste(false);
+          onSourceSaved?.();
+        }
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Failed to save source");
+        return;
       }
+    }
+
+    setAiRunning(true);
+    try {
+      const data = await requestAiReview(submission._id, reviewType);
+      setAiReview(data.review);
+      toast.success(
+        data.providerId === "mock"
+          ? "Mock review ready (configure GEMINI_API_KEY for live AI)"
+          : "AI review complete"
+      );
+    } catch (err) {
+      toast.error(err.response?.data?.message || "AI review failed");
+    } finally {
+      setAiRunning(false);
+    }
+  };
+
+  const importFromPlatform = async () => {
+    setImporting(true);
+    try {
+      const result = await fetchSubmissionSourceFromPlatform(submission._id);
+      if (result.ok && result.sourceCode) {
+        setStoredSource(result);
+        setShowPaste(false);
+        setSourceDraft("");
+        onSourceSaved?.();
+        toast.success(
+          result.fetched ? "Source imported from Codeforces" : "Source ready"
+        );
+      } else {
+        if (result.submissionUrl) setSubmissionUrl(result.submissionUrl);
+        setShowPaste(true);
+        toast.message(
+          result.message ||
+            "Could not import source — paste it from the platform page"
+        );
+      }
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const runAnalyze = async () => {
+    setRunning(true);
+    try {
+      let ready = Boolean(storedSource?.sourceCode);
+
+      // Persist pasted source before analyzing
+      if (!ready && sourceDraft.trim()) {
+        await saveSubmissionSource(submission._id, {
+          sourceCode: sourceDraft,
+          programmingLanguage: langDraft,
+        });
+        const refreshed = await getSubmissionSource(submission._id);
+        if (refreshed.ok && refreshed.sourceCode) {
+          setStoredSource(refreshed);
+          setShowPaste(false);
+          setSourceDraft("");
+          onSourceSaved?.();
+          ready = true;
+        }
+      }
+
+      if (!ready) {
+        toast.error("Add source code before running analysis");
+        setShowPaste(true);
+        return;
+      }
+
       const data = await analyzeSubmission(submission._id);
       setAnalysis(data.analysis);
-      toast.success(data.cached ? "Reused cached analysis" : "Analysis complete");
+      toast.success(
+        data.cached ? "Reused cached analysis" : "Analysis complete"
+      );
     } catch (err) {
-      toast.error(err.response?.data?.message || "Analysis failed");
+      const msg = err.response?.data?.message || "Analysis failed";
+      toast.error(msg);
+      if (
+        err.response?.data?.code === "SOURCE_UNAVAILABLE" ||
+        err.response?.status === 404
+      ) {
+        setShowPaste(true);
+      }
     } finally {
       setRunning(false);
     }
@@ -156,32 +328,87 @@ export default function AnalysisPanel({ submission, onClose }) {
         </div>
 
         <div className="flex-1 overflow-auto p-4 space-y-4">
-          {needsSource && (
-            <div className="rounded-lg border border-amber-200 dark:border-amber-500/30 bg-amber-50/80 dark:bg-amber-500/10 p-3 space-y-2">
-              <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
-                Source code is not stored for this submission. Paste it to
-                analyze.
+          {/* Source section */}
+          <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-3 space-y-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                Submitted source
               </p>
-              <input
-                className="w-full h-9 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-sm"
-                value={langDraft}
-                onChange={(e) => setLangDraft(e.target.value)}
-                placeholder="Language (e.g. GNU C++17, Python 3, JavaScript)"
-              />
-              <textarea
-                className="w-full min-h-[140px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 p-3 text-xs font-mono"
-                value={sourceDraft}
-                onChange={(e) => setSourceDraft(e.target.value)}
-                placeholder="Paste source code here…"
-              />
+              <div className="flex flex-wrap gap-2">
+                {submission?.platform === "codeforces" && !storedSource?.sourceCode && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8"
+                    disabled={importing || sourceLoading}
+                    onClick={importFromPlatform}
+                  >
+                    {importing ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                    ) : (
+                      <Download className="w-3.5 h-3.5 mr-1.5" />
+                    )}
+                    Import from CF
+                  </Button>
+                )}
+                {submissionUrl && (
+                  <a
+                    href={submissionUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 h-8 px-3 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                  >
+                    Open on CF <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
+                {storedSource?.sourceCode && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8"
+                    onClick={() => setShowPaste((v) => !v)}
+                  >
+                    {showPaste ? "Hide editor" : "Replace source"}
+                  </Button>
+                )}
+              </div>
             </div>
-          )}
+
+            {sourceLoading ? (
+              <div className="flex items-center text-sm text-slate-400 py-4">
+                <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading source…
+              </div>
+            ) : storedSource?.sourceCode && !showPaste ? (
+              <pre className="max-h-48 overflow-auto rounded-md bg-slate-50 dark:bg-slate-950 p-3 text-xs font-mono text-slate-800 dark:text-slate-200 whitespace-pre-wrap">
+                {storedSource.sourceCode}
+              </pre>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-sm text-amber-800 dark:text-amber-100/90">
+                  Source is not stored yet. Paste your submitted code (copy from
+                  the platform submission page), then run analysis.
+                </p>
+                <input
+                  className="w-full h-9 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-sm"
+                  value={langDraft}
+                  onChange={(e) => setLangDraft(e.target.value)}
+                  placeholder="Language (e.g. GNU C++17, Python 3, JavaScript)"
+                />
+                <textarea
+                  className="w-full min-h-[160px] rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 p-3 text-xs font-mono"
+                  value={sourceDraft}
+                  onChange={(e) => setSourceDraft(e.target.value)}
+                  placeholder="Paste source code here…"
+                />
+              </div>
+            )}
+          </div>
 
           <div className="flex flex-wrap gap-2">
             <Button
               type="button"
               className="h-9"
-              disabled={running || (needsSource && !sourceDraft.trim())}
+              disabled={running || sourceLoading || !hasUsableSource}
               onClick={runAnalyze}
             >
               {running ? (
@@ -245,20 +472,6 @@ export default function AnalysisPanel({ submission, onClose }) {
                     </Chip>
                   ))}
                 </div>
-                {(analysis.detectedAlgorithms || []).some((d) => d.evidence?.length) && (
-                  <ul className="mt-2 text-xs text-slate-500 list-disc pl-4 space-y-0.5">
-                    {analysis.detectedAlgorithms.flatMap((d) =>
-                      (d.evidence || []).map((e) => (
-                        <li key={`${d.name}-${e}`}>
-                          <span className="font-medium text-slate-600 dark:text-slate-300">
-                            {d.name}:
-                          </span>{" "}
-                          {e}
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                )}
               </div>
 
               <div>
@@ -279,7 +492,10 @@ export default function AnalysisPanel({ submission, onClose }) {
               </div>
 
               <div className="grid sm:grid-cols-2 gap-3">
-                <ComplexityBlock title="Time complexity" data={analysis.timeComplexity} />
+                <ComplexityBlock
+                  title="Time complexity"
+                  data={analysis.timeComplexity}
+                />
                 <ComplexityBlock
                   title="Auxiliary space"
                   data={
@@ -357,16 +573,6 @@ export default function AnalysisPanel({ submission, onClose }) {
                         <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
                           {s.rationale}
                         </p>
-                        {s.expectedComplexityImpact && (
-                          <p className="text-xs text-slate-500 mt-1">
-                            Impact: {s.expectedComplexityImpact}
-                          </p>
-                        )}
-                        {s.tradeOffs?.length > 0 && (
-                          <p className="text-xs text-slate-500 mt-1">
-                            Trade-offs: {s.tradeOffs.join("; ")}
-                          </p>
-                        )}
                       </div>
                     ))}
                   </div>
@@ -387,6 +593,92 @@ export default function AnalysisPanel({ submission, onClose }) {
               )}
             </>
           )}
+
+          {/* Phase 4 — AI review (Gemini) */}
+          <div className="rounded-lg border border-violet-200 dark:border-violet-500/30 bg-violet-50/40 dark:bg-violet-500/5 p-3 space-y-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Bot className="w-4 h-4 text-violet-600 dark:text-violet-300" />
+                <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                  AI code review
+                </p>
+                {aiStatus?.providerId && (
+                  <span className="text-[10px] uppercase tracking-wide text-violet-600 dark:text-violet-300">
+                    {aiStatus.providerId}
+                    {aiStatus.model ? ` · ${aiStatus.model}` : ""}
+                  </span>
+                )}
+              </div>
+              <select
+                value={reviewType}
+                onChange={(e) => setReviewType(e.target.value)}
+                className="h-8 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 text-xs"
+              >
+                {REVIEW_TYPES.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <p className="text-xs text-slate-500">
+              Uses Gemini to discuss your code. Static only — never executes
+              submissions.
+            </p>
+            <Button
+              type="button"
+              className="h-9"
+              disabled={aiRunning || sourceLoading || !hasUsableSource}
+              onClick={runAiReview}
+            >
+              {aiRunning ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Bot className="w-4 h-4 mr-2" />
+              )}
+              {aiReview ? "Re-run AI review" : "Run AI review"}
+            </Button>
+
+            {aiLoading ? (
+              <div className="flex items-center text-sm text-slate-400 py-2">
+                <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading AI
+                review…
+              </div>
+            ) : aiReview ? (
+              <div className="space-y-3">
+                <p className="text-sm text-slate-800 dark:text-slate-100">
+                  {aiReview.summary}
+                </p>
+                <div className="space-y-2">
+                  {(aiReview.comments || []).map((c, idx) => (
+                    <div
+                      key={`${c.topic}-${idx}`}
+                      className={`rounded-lg border px-3 py-2 text-sm ${
+                        severityClass[c.severity] || severityClass.info
+                      }`}
+                    >
+                      <p className="font-medium">
+                        {c.severity ? `[${c.severity}] ` : ""}
+                        {c.topic}
+                      </p>
+                      <p className="text-xs mt-0.5 opacity-90">{c.body}</p>
+                    </div>
+                  ))}
+                </div>
+                {(aiReview.limitations || []).length > 0 && (
+                  <ul className="text-xs text-slate-500 list-disc pl-4 space-y-0.5">
+                    {aiReview.limitations.map((l) => (
+                      <li key={l}>{l}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">
+                No AI review yet for this type
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>

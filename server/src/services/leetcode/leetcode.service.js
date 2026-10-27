@@ -72,7 +72,7 @@ export const connectLeetCode = async (userId, rawHandle) => {
         activeJobId: null,
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
   );
 
   // Keep User display fields in sync (solved may be null — store only when number)
@@ -98,7 +98,7 @@ export const disconnectLeetCode = async (userId) => {
         syncCursor: null,
       },
     },
-    { new: true }
+    { returnDocument: "after" }
   );
 
   // Preserve historical submissions; clear display username optionally kept

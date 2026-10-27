@@ -20,6 +20,12 @@
     --app-font-size: 16px;
     --accent: #3b82f6;
     --accent-rgb: 59 130 246;
+    --accent-from: #3b82f6;
+    --accent-to: #2563eb;
+    --accent-bg: rgb(59 130 246 / 0.12);
+    --accent-border: rgb(59 130 246 / 0.45);
+    --brand: #3b82f6;
+    --brand-rgb: 59 130 246;
     --font-ui: "DM Sans", ui-sans-serif, system-ui, sans-serif;
     --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   }

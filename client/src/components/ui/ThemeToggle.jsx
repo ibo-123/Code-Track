@@ -5,7 +5,7 @@ import { useTheme } from "../../context/ThemeContext";
  * variant: "icon" | "switch" | "pill"
  */
 function ThemeToggle({ variant = "icon", className = "" }) {
-  const { theme, toggleTheme, isDark } = useTheme();
+  const { toggleTheme, isDark, setLight, setDark } = useTheme();
 
   // ── Icon button ──────────────────────────────────────────────────────
   if (variant === "icon") {
@@ -103,7 +103,8 @@ function ThemeToggle({ variant = "icon", className = "" }) {
         `}
       >
         <button
-          onClick={() => useTheme().setLight?.()}
+          type="button"
+          onClick={() => setLight?.()}
           className={`
             px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5
             transition-all duration-200
@@ -118,6 +119,8 @@ function ThemeToggle({ variant = "icon", className = "" }) {
           Light
         </button>
         <button
+          type="button"
+          onClick={() => setDark?.()}
           className={`
             px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5
             transition-all duration-200
